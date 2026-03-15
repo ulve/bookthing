@@ -391,7 +391,10 @@ def rescan_book(book_id: str) -> tuple[bool, str]:
         matched = candidate_to_entry(candidates[0], AUDIOBOOKS_PATH)
 
     merged = merge(existing, matched)
-    merged["file_durations"] = read_durations(merged["files"], AUDIOBOOKS_PATH)
+    if merged.get("files") != existing.get("files") or "file_durations" not in existing:
+        merged["file_durations"] = read_durations(merged["files"], AUDIOBOOKS_PATH)
+    else:
+        merged["file_durations"] = existing["file_durations"]
 
     # Replace old entry (book_id won't change for same path)
     existing_books.pop(book_id, None)
