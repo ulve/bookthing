@@ -2,6 +2,8 @@
 
 A self-hosted audiobook streaming web app with magic-link authentication. No passwords — users get a login link sent to their email.
 
+![Bookthing screenshot](docs/screenshot.png)
+
 ## Requirements
 
 - Docker and Docker Compose
