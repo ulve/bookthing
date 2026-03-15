@@ -245,8 +245,8 @@ async function refreshLibraryView(session) {
     .map(s => `<option value="${esc(s)}" ${filterState.series === s ? "selected" : ""}>${esc(s)}</option>`)
     .join("");
 
-  const tagsOptions = (metaCache.tags || [])
-    .map(t => `<option value="${esc(t)}" ${filterState.tags.includes(t) ? "selected" : ""}>${esc(t)}</option>`)
+  const tagChipsFilter = (metaCache.tags || [])
+    .map(t => `<span class="tag-chip filter-tag-chip${filterState.tags.includes(t) ? " active" : ""}" data-tag="${esc(t)}">${esc(t)}</span>`)
     .join("");
 
   const bookCards = books.length
@@ -305,8 +305,8 @@ async function refreshLibraryView(session) {
           </select>
         </div>
         <div class="filter-group">
-          <label for="tags-select">Tags</label>
-          <select id="tags-select" multiple>${tagsOptions}</select>
+          <label>Tags</label>
+          <div class="filter-tag-chips" id="filter-tag-chips">${tagChipsFilter}</div>
         </div>
         <button class="btn btn-clear" id="clear-filters">Clear filters</button>
       </aside>
@@ -342,8 +342,16 @@ async function refreshLibraryView(session) {
     refreshLibraryView(session);
   });
 
-  document.getElementById("tags-select").addEventListener("change", e => {
-    filterState.tags = Array.from(e.target.selectedOptions).map(o => o.value);
+  document.getElementById("filter-tag-chips").addEventListener("click", e => {
+    const chip = e.target.closest(".filter-tag-chip");
+    if (!chip) return;
+    const tag = chip.dataset.tag;
+    if (filterState.tags.includes(tag)) {
+      filterState.tags = filterState.tags.filter(t => t !== tag);
+    } else {
+      filterState.tags = [...filterState.tags, tag];
+    }
+    chip.classList.toggle("active", filterState.tags.includes(tag));
     refreshLibraryView(session);
   });
 
@@ -404,9 +412,9 @@ async function renderBookDetail(bookId) {
         <img src="/icon-nav.svg" alt="" class="site-icon">
         <span class="site-name">bookthing</span>
       </div>
+      <button class="btn" id="back-btn">&#8592; Library</button>
     </div>
     <div class="book-detail">
-      <div class="back-btn" id="back-btn">&#8592; Library</div>
       <div class="book-detail-header">
         ${coverHtml(book, "detail")}
         <div class="detail-meta">

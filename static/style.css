@@ -152,7 +152,6 @@ input:focus, select:focus {
   .filter-toggle { display: block !important; width: 100%; margin-bottom: 0.75rem; }
   /* Compact sidebar on narrow screens */
   .filter-sidebar { padding: 0.75rem; overflow-y: auto; max-height: calc(100vh - 220px); }
-  .filter-group select[multiple] { height: 70px; }
 }
 
 /* ============================================================
@@ -194,9 +193,33 @@ input:focus, select:focus {
   width: 100%;
 }
 
-.filter-group select[multiple] {
-  height: 100px;
-  resize: vertical;
+.filter-tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.filter-tag-chip {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.filter-tag-chip:hover {
+  border-color: var(--accent-dim);
+  color: var(--text);
+}
+
+.filter-tag-chip.active {
+  background: rgba(201,168,76,0.18);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .btn-clear {
