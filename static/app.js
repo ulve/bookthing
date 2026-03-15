@@ -169,9 +169,9 @@ function seriesBadge(book) {
   return `<span class="book-series-badge">${esc(book.series)}${num}</span>`;
 }
 
-function tagChips(tags) {
+function tagChips(tags, clickable = false) {
   if (!tags?.length) return "";
-  return `<div class="tag-chips">${tags.map(t => `<span class="tag-chip">${esc(t)}</span>`).join("")}</div>`;
+  return `<div class="tag-chips">${tags.map(t => `<span class="tag-chip${clickable ? " tag-chip-link" : ""}" ${clickable ? `data-tag="${esc(t)}"` : ""}>${esc(t)}</span>`).join("")}</div>`;
 }
 
 function esc(s) {
@@ -288,7 +288,7 @@ async function refreshLibraryView(session) {
         <h3>Filters</h3>
         <div class="filter-group">
           <label for="search-input">Search</label>
-          <input type="text" id="search-input" placeholder="Title or author…" value="${esc(filterState.search)}">
+          <input type="text" id="search-input" placeholder="Title, author or series…" value="${esc(filterState.search)}">
         </div>
         <div class="filter-group">
           <label for="author-select">Author</label>
@@ -372,7 +372,7 @@ async function renderBookDetail(bookId) {
   clientLog("info", "book detail", { book_id: bookId, title: book.title });
 
   const seriesLine = book.series
-    ? `<div class="series">${esc(book.series)}${book.number_in_series != null ? ` #${book.number_in_series}` : ""}</div>`
+    ? `<div class="series detail-series-link" data-series="${esc(book.series)}">${esc(book.series)}${book.number_in_series != null ? ` #${book.number_in_series}` : ""}</div>`
     : "";
 
   const tracksHtml = (book.files || []).map((f, i) => `
@@ -411,9 +411,9 @@ async function renderBookDetail(bookId) {
         ${coverHtml(book, "detail")}
         <div class="detail-meta">
           <h1>${esc(book.title || "Untitled")}</h1>
-          <div class="author">${esc(book.author || "")}</div>
+          <div class="author detail-author-link" data-author="${esc(book.author || "")}">${esc(book.author || "")}</div>
           ${seriesLine}
-          ${tagChips(book.tags)}
+          ${tagChips(book.tags, true)}
           ${durationLine}
           <div class="detail-actions">
             <button class="btn btn-accent" id="play-btn">&#9654; Play</button>
@@ -430,6 +430,21 @@ async function renderBookDetail(bookId) {
   document.getElementById("back-btn").addEventListener("click", () => {
     if (history.length > 1) history.back();
     else navigate("/");
+  });
+
+  document.querySelector(".detail-author-link")?.addEventListener("click", () => {
+    filterState = { search: "", author: book.author || "", series: "", tags: [] };
+    navigate("/");
+  });
+  document.querySelector(".detail-series-link")?.addEventListener("click", () => {
+    filterState = { search: "", author: "", series: book.series || "", tags: [] };
+    navigate("/");
+  });
+  document.querySelectorAll(".tag-chip-link").forEach(el => {
+    el.addEventListener("click", () => {
+      filterState = { search: "", author: "", series: "", tags: [el.dataset.tag] };
+      navigate("/");
+    });
   });
 
   document.getElementById("play-btn").addEventListener("click", () => {

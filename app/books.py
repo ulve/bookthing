@@ -112,7 +112,9 @@ def get_book_list(search: str = None, author: str = None, series: str = None, ta
         s = search.lower()
         books = [
             b for b in books
-            if s in (b.get("title") or "").lower() or s in (b.get("author") or "").lower()
+            if s in (b.get("title") or "").lower()
+            or s in (b.get("author") or "").lower()
+            or s in (b.get("series") or "").lower()
         ]
     if author:
         books = [b for b in books if (b.get("author") or "").lower() == author.lower()]

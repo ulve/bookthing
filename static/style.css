@@ -324,6 +324,23 @@ input:focus, select:focus {
   color: var(--text-muted);
 }
 
+.tag-chip-link,
+.detail-author-link,
+.detail-series-link {
+  cursor: pointer;
+}
+
+.tag-chip-link:hover {
+  background: var(--bg2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.detail-author-link:hover,
+.detail-series-link:hover {
+  text-decoration: underline;
+}
+
 .empty-state {
   text-align: center;
   padding: 3rem 1rem;
