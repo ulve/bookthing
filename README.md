@@ -37,6 +37,7 @@ On first start, the app emails a login link to `ADMIN_EMAIL`. Check your inbox, 
 |---|---|
 | `BASE_URL` | Public URL of your instance (used in login email links) |
 | `SESSION_DAYS` | How long login sessions last (default: 30) |
+| `SECURE_COOKIES` | Set the `Secure` flag on session cookies (default: `true`). Set to `false` if running without HTTPS (e.g. local development). |
 | `ADMIN_EMAIL` | Bootstrapped as admin on first start; receives the first login link |
 | `GMAIL_SENDER` | Gmail address used to send login emails |
 | `GMAIL_APP_PASSWORD` | Gmail App Password (not your account password) |

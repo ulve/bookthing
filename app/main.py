@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import books as books_module
 from app.auth import consume_magic_link, require_auth, require_admin, request_magic_link, get_or_create_user, send_magic_email
-from app.config import BASE_DIR, AUDIOBOOKS_PATH, COVERS_DIR, ADMIN_EMAIL, BASE_URL
+from app.config import BASE_DIR, AUDIOBOOKS_PATH, COVERS_DIR, ADMIN_EMAIL, BASE_URL, SECURE_COOKIES
 from app.db import get_db, init_db
 from app.streaming import stream_audio
 
@@ -112,6 +112,7 @@ def magic_link(token: str):
         max_age=30 * 86400,
         httponly=True,
         samesite="lax",
+        secure=SECURE_COOKIES,
     )
     return response
 

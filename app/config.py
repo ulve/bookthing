@@ -9,6 +9,7 @@ DB_PATH = Path(os.environ.get("DB_PATH", BASE_DIR / "bookthing.db"))
 COVERS_DIR = METADATA_PATH.parent / "covers"
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 SESSION_DAYS = int(os.environ.get("SESSION_DAYS", "30"))
+SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "true").strip().lower() not in ("0", "false", "no")
 
 # Email (Gmail SMTP with App Password)
 GMAIL_SENDER = os.environ.get("GMAIL_SENDER", "")
