@@ -1054,10 +1054,8 @@ async function renderAdmin() {
         try {
           const data = await api(`/api/admin/books/${id}/rescan`, { method: "POST" });
           if (data.ok) {
-            status.textContent = data.output?.trim() || "Rescanned.";
-            status.className = "admin-status admin-status-ok";
-            // Reload admin data to reflect updated files/cover
-            await loadAdmin();
+            // Reload admin page to reflect updated files/cover
+            navigate("/admin", true);
           } else {
             status.textContent = data.output?.trim() || "Rescan failed.";
             status.className = "admin-status admin-status-err";
