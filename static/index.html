@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookthing</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0f0f0f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Bookthing">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/webp" sizes="192x192" href="/icon-192.webp">
+
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Persistent player bar (hidden until a book is loaded) -->
+  <div id="player-bar" class="player-bar hidden">
+    <audio id="audio-el"></audio>
+    <div class="player-info">
+      <img id="player-cover" class="player-cover" src="" alt="" hidden>
+      <div class="player-meta">
+        <span id="player-title" class="player-title"></span>
+        <span id="player-track" class="player-track"></span>
+      </div>
+    </div>
+    <div class="player-controls">
+      <button id="btn-prev" class="icon-btn" title="Previous track">&#9664;&#9664;</button>
+      <button id="btn-play" class="icon-btn play-btn" title="Play/Pause">&#9654;</button>
+      <button id="btn-next" class="icon-btn" title="Next track">&#9654;&#9654;</button>
+    </div>
+    <div class="player-progress">
+      <span id="time-current" class="time-label">0:00</span>
+      <input id="scrubber" type="range" min="0" max="100" value="0" step="0.1" class="scrubber">
+      <span id="time-total" class="time-label">0:00</span>
+    </div>
+    <div class="player-speed">
+      <select id="speed-select" title="Playback speed">
+        <option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option>
+        <option value="2">2×</option>
+      </select>
+    </div>
+  </div>
+
+  <script type="module" src="/player.js"></script>
+  <script type="module" src="/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+</body>
+</html>

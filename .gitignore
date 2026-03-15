@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# App data (persisted via Docker volumes, not in repo)
+data/
+bookthing.db
+
+# Stray folders (mis-placed audiobook dirs at project root)
+01 Xenos
+02 Malleus
+03 Hereticus
+04 The Magos
+
+# Local config (contains credentials — copy from docker-compose.example.yml)
+docker-compose.yml
+
+# Misc
+hshsh.sh
+/logo.png
+/logo2.png
+.DS_Store
+*.log

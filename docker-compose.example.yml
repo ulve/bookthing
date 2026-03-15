@@ -1,0 +1,15 @@
+services:
+  bookthing:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - /path/to/your/audiobooks:/audiobooks:ro
+      - ./data:/data
+    environment:
+      - BASE_URL=https://your-domain.example.com
+      - SESSION_DAYS=30
+      - ADMIN_EMAIL=you@example.com
+      - GMAIL_SENDER=you@example.com
+      - GMAIL_APP_PASSWORD=your-gmail-app-password
+    restart: unless-stopped

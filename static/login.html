@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in — Bookthing</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="/icon-192.webp" type="image/webp">
+</head>
+<body>
+  <div id="app">
+    <div class="site-header">
+      <img src="/logo2.webp" alt="Bookthing" class="site-logo">
+    </div>
+
+    <div class="login-wrap">
+      <div class="login-card">
+        <h2 class="login-title">Sign in</h2>
+        <p class="login-hint">Enter your email address and we'll send you a login link.</p>
+
+        <form id="login-form" autocomplete="on">
+          <input
+            id="email-input"
+            type="email"
+            name="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          >
+          <button type="submit" class="btn btn-accent" id="submit-btn">Send login link</button>
+        </form>
+
+        <p class="login-msg hidden" id="success-msg">
+          ✓ Check your inbox — a login link is on its way.
+        </p>
+        <p class="login-msg login-error hidden" id="error-msg"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("login-form");
+    const btn  = document.getElementById("submit-btn");
+    const successMsg = document.getElementById("success-msg");
+    const errorMsg   = document.getElementById("error-msg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email-input").value.trim();
+      btn.disabled = true;
+      btn.textContent = "Sending…";
+      errorMsg.classList.add("hidden");
+
+      try {
+        const res = await fetch("/auth/request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        if (res.ok) {
+          form.classList.add("hidden");
+          successMsg.classList.remove("hidden");
+        } else {
+          const data = await res.json().catch(() => ({}));
+          errorMsg.textContent = data.detail || "Something went wrong. Please try again.";
+          errorMsg.classList.remove("hidden");
+          btn.disabled = false;
+          btn.textContent = "Send login link";
+        }
+      } catch {
+        errorMsg.textContent = "Network error. Please try again.";
+        errorMsg.classList.remove("hidden");
+        btn.disabled = false;
+        btn.textContent = "Send login link";
+      }
+    });
+  </script>
+</body>
+</html>
