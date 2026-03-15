@@ -265,13 +265,28 @@ USER_EDITABLE_FIELDS = {"title", "author", "series", "number_in_series", "tags",
 
 def read_durations(files_rel: list[str], root: Path) -> list[float]:
     """Read audio duration for each file via mutagen. Returns 0.0 on failure."""
-    from mutagen import File as MutagenFile
+    try:
+        from mutagen import File as MutagenFile
+    except ImportError:
+        return [0.0] * len(files_rel)
     durations = []
     for f_rel in files_rel:
         path = root / f_rel
         try:
             audio = MutagenFile(path, easy=False)
-            durations.append(round(audio.info.length, 2) if audio and audio.info else 0.0)
+            if audio is None:
+                # mutagen.File is case-sensitive on extension; try explicit types
+                ext = path.suffix.lower()
+                if ext == ".mp3":
+                    from mutagen.mp3 import MP3
+                    audio = MP3(path)
+                elif ext in (".m4b", ".m4a", ".mp4"):
+                    from mutagen.mp4 import MP4
+                    audio = MP4(path)
+                elif ext == ".flac":
+                    from mutagen.flac import FLAC
+                    audio = FLAC(path)
+            durations.append(round(audio.info.length, 2) if audio is not None and audio.info else 0.0)
         except Exception:
             durations.append(0.0)
     return durations
