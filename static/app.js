@@ -165,7 +165,10 @@ function headerHtml(session) {
     : "";
   return `
     <div class="site-header">
-      <img src="/logo2.webp" alt="Bookthing" class="site-logo" id="nav-home">
+      <div class="site-brand" id="nav-home">
+        <img src="/icon-nav.svg" alt="" class="site-icon">
+        <span class="site-name">bookthing</span>
+      </div>
       ${adminLink}
       <form method="post" action="/auth/logout" style="margin:0">
         <button class="btn" type="submit">Sign out</button>
@@ -373,7 +376,10 @@ async function renderBookDetail(bookId) {
 
   app.innerHTML = `
     <div class="site-header">
-      <img src="/logo2.webp" alt="Bookthing" class="site-logo" id="nav-home">
+      <div class="site-brand" id="nav-home">
+        <img src="/icon-nav.svg" alt="" class="site-icon">
+        <span class="site-name">bookthing</span>
+      </div>
     </div>
     <div class="book-detail">
       <div class="back-btn" id="back-btn">&#8592; Library</div>
@@ -545,7 +551,10 @@ async function renderAdmin() {
     <datalist id="dl-admin-series">${allSeries.map(s => `<option value="${esc(s)}">`).join("")}</datalist>
 
     <div class="site-header">
-      <img src="/logo2.webp" alt="Bookthing" class="site-logo" id="nav-home">
+      <div class="site-brand" id="nav-home">
+        <img src="/icon-nav.svg" alt="" class="site-icon">
+        <span class="site-name">bookthing</span>
+      </div>
       <span style="color:var(--accent);font-size:0.85rem;font-weight:600;">Admin</span>
       <button class="btn" id="nav-library">&#8592; Library</button>
     </div>

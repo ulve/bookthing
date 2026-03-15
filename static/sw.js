@@ -1,5 +1,5 @@
 const CACHE = 'bookthing-v5';
-const STATIC = ['/logo2.webp', '/icon-192.webp', '/icon-512.webp', '/apple-touch-icon.png'];
+const STATIC = ['/icon-nav.svg', '/icon-192.webp', '/icon-512.webp', '/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   // Pre-cache only images (rarely change); JS/CSS/HTML use network-first
