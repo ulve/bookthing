@@ -569,6 +569,15 @@ async def admin_update_book(book_id: str, request: Request, _session=Depends(req
         fields["description"] = str(body["description"]).strip() or ""
     if "hidden" in body:
         fields["hidden"] = bool(body["hidden"])
+    if "links" in body:
+        raw = body["links"]
+        if isinstance(raw, list):
+            fields["links"] = [
+                {"label": str(l.get("label", "")).strip(), "url": str(l.get("url", "")).strip()}
+                for l in raw if isinstance(l, dict) and str(l.get("url", "")).strip()
+            ]
+        else:
+            fields["links"] = []
 
     ok = books_module.update_book(book_id, fields)
     if not ok:

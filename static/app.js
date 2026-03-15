@@ -412,6 +412,12 @@ async function renderBookDetail(bookId) {
     ? `<div class="book-description"><p>${esc(book.description)}</p></div>`
     : "";
 
+  const linksHtml = (book.links || []).length
+    ? `<div class="book-links">${(book.links).map(l =>
+        `<a class="book-link" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.label || l.url)} &#8599;</a>`
+      ).join("")}</div>`
+    : "";
+
   const durationLine = book.total_seconds > 0
     ? `<div class="detail-duration">${fmtDuration(book.total_seconds)}</div>`
     : "";
@@ -441,6 +447,7 @@ async function renderBookDetail(bookId) {
         </div>
       </div>
       ${descHtml}
+      ${linksHtml}
       ${trackSection}
     </div>`;
 
@@ -596,6 +603,15 @@ async function renderAdmin() {
             <button class="btn admin-fetch-btn" data-id="${b.book_id}" title="Fetch description from Google Books">Fetch ↓</button>
           </div>
           <div class="admin-fetch-results hidden" id="fetch-${b.book_id}"></div>
+          <div class="admin-links-section" id="links-${b.book_id}">
+            ${(b.links || []).map(l => `
+              <div class="admin-link-row">
+                <input class="admin-input admin-input-link-label" placeholder="Label" value="${esc(l.label || "")}">
+                <input class="admin-input admin-input-link-url" placeholder="URL" value="${esc(l.url || "")}">
+                <button class="btn admin-link-remove" type="button" title="Remove link">&#215;</button>
+              </div>`).join("")}
+          </div>
+          <button class="btn admin-link-add" data-id="${b.book_id}" type="button">+ Link</button>
         </div>
         <div class="admin-actions-cell">
           <button class="btn admin-strip-btn" data-id="${b.book_id}" title="Replace underscores with spaces in all fields">Fix _</button>
@@ -1052,6 +1068,34 @@ async function renderAdmin() {
       input.addEventListener("focus", () => showTagAutocomplete(input, allTags));
     });
 
+    // Add link button
+    document.querySelectorAll(".admin-link-add").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = document.getElementById(`links-${btn.dataset.id}`);
+        const row = document.createElement("div");
+        row.className = "admin-link-row";
+        row.innerHTML = `
+          <input class="admin-input admin-input-link-label" placeholder="Label">
+          <input class="admin-input admin-input-link-url" placeholder="URL">
+          <button class="btn admin-link-remove" type="button" title="Remove link">&#215;</button>`;
+        section.appendChild(row);
+        row.querySelector(".admin-input-link-url").focus();
+        markDirty(btn.dataset.id);
+      });
+    });
+
+    // Remove link button (delegated on each links section)
+    document.querySelectorAll(".admin-links-section").forEach(section => {
+      section.addEventListener("click", e => {
+        const removeBtn = e.target.closest(".admin-link-remove");
+        if (!removeBtn) return;
+        const row = removeBtn.closest(".admin-link-row");
+        const bookId = section.id.replace("links-", "");
+        row.remove();
+        markDirty(bookId);
+      });
+    });
+
     // Rescan button
     document.querySelectorAll(".admin-rescan-btn").forEach(btn => {
       btn.addEventListener("click", async () => {
@@ -1110,6 +1154,10 @@ async function renderAdmin() {
         const row = document.querySelector(`.admin-row[data-id="${id}"]`);
         const get = f => row.querySelector(`[data-field="${f}"][data-id="${id}"]`)?.value ?? "";
         const tagsVal = get("tags");
+        const links = [...row.querySelectorAll(`#links-${id} .admin-link-row`)].map(r => ({
+          label: r.querySelector(".admin-input-link-label").value.trim(),
+          url: r.querySelector(".admin-input-link-url").value.trim(),
+        })).filter(l => l.url);
         const payload = {
           title: get("title"),
           author: get("author"),
@@ -1117,6 +1165,7 @@ async function renderAdmin() {
           number_in_series: get("number_in_series") || null,
           tags: tagsVal,
           description: get("description"),
+          links,
         };
         const status = document.getElementById(`status-${id}`);
         btn.disabled = true;

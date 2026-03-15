@@ -260,7 +260,7 @@ def candidate_to_entry(candidate: BookCandidate, root: Path) -> dict:
     }
 
 
-USER_EDITABLE_FIELDS = {"title", "author", "series", "number_in_series", "tags", "description", "hidden"}
+USER_EDITABLE_FIELDS = {"title", "author", "series", "number_in_series", "tags", "description", "hidden", "links"}
 
 
 def read_durations(files_rel: list[str], root: Path) -> list[float]:

@@ -31,7 +31,7 @@ def update_book(book_id: str, fields: dict):
         book = data.get("books", {}).get(book_id)
         if not book:
             return False
-        allowed = {"title", "author", "series", "number_in_series", "tags", "description", "hidden"}
+        allowed = {"title", "author", "series", "number_in_series", "tags", "description", "hidden", "links"}
         for k, v in fields.items():
             if k in allowed:
                 book[k] = v
@@ -239,6 +239,7 @@ def _book_detail(b: dict) -> dict:
         "number_in_series": b.get("number_in_series"),
         "tags": b.get("tags") or [],
         "description": b.get("description") or "",
+        "links": b.get("links") or [],
         "has_cover": bool(_cover_exists(b)),
         "file_count": len(files),
         "total_seconds": round(total_seconds),
@@ -259,6 +260,7 @@ def _book_admin(b: dict) -> dict:
         "number_in_series": b.get("number_in_series"),
         "tags": b.get("tags") or [],
         "description": b.get("description") or "",
+        "links": b.get("links") or [],
         "has_cover": bool(_cover_exists(b)),
         "missing": bool(b.get("missing")),
         "hidden": bool(b.get("hidden")),
