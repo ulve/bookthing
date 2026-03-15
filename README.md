@@ -43,6 +43,20 @@ The audiobooks volume (`/audiobooks:ro`) should point to wherever your audio fil
 
 ---
 
+## Running tests
+
+```bash
+# Install test dependencies (one-time)
+pip install -r requirements-dev.txt
+
+# Run all tests
+pytest tests/ -v
+```
+
+Tests use temporary files and an in-memory SQLite database — no running server or real audiobook files needed.
+
+---
+
 ## Day-to-day commands
 
 ```bash
