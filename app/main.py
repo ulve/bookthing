@@ -249,7 +249,7 @@ async def download(book_id: str, _session=Depends(require_auth)):
         raise HTTPException(status_code=404, detail="No files")
 
     title = book.get("title") or book_id
-    author = book.get("author") or ""
+    author = (book.get("author") or "").split(",")[0].strip()
 
     if len(files) == 1:
         file_path = files[0]
@@ -531,7 +531,7 @@ def fetch_book_description(book_id: str, _session=Depends(require_admin)):
         raise HTTPException(status_code=404, detail="Book not found")
 
     title = (book.get("title") or "").strip()
-    author = (book.get("author") or "").strip()
+    author = (book.get("author") or "").split(",")[0].strip()
     if not title:
         raise HTTPException(status_code=400, detail="Book has no title to search with")
 

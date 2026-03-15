@@ -419,7 +419,7 @@ async function renderBookDetail(bookId) {
         ${coverHtml(book, "detail")}
         <div class="detail-meta">
           <h1>${esc(book.title || "Untitled")}</h1>
-          <div class="author detail-author-link" data-author="${esc(book.author || "")}">${esc(book.author || "")}</div>
+          <div class="author">${(book.author || "").split(",").map(a => a.trim()).filter(Boolean).map(a => `<span class="detail-author-link" data-author="${esc(a)}">${esc(a)}</span>`).join(", ")}</div>
           ${seriesLine}
           ${tagChips(book.tags, true)}
           ${durationLine}
@@ -440,8 +440,10 @@ async function renderBookDetail(bookId) {
     else navigate("/");
   });
 
-  document.querySelector(".detail-author-link")?.addEventListener("click", () => {
-    filterState = { search: "", author: book.author || "", series: "", tags: [] };
+  document.querySelector(".detail-meta .author")?.addEventListener("click", e => {
+    const link = e.target.closest(".detail-author-link");
+    if (!link) return;
+    filterState = { search: "", author: link.dataset.author, series: "", tags: [] };
     navigate("/");
   });
   document.querySelector(".detail-series-link")?.addEventListener("click", () => {

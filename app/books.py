@@ -117,7 +117,8 @@ def get_book_list(search: str = None, author: str = None, series: str = None, ta
             or s in (b.get("series") or "").lower()
         ]
     if author:
-        books = [b for b in books if (b.get("author") or "").lower() == author.lower()]
+        books = [b for b in books if author.lower() in
+                 [a.strip().lower() for a in (b.get("author") or "").split(",")]]
     if series:
         books = [b for b in books if (b.get("series") or "").lower() == series.lower()]
     if tags:
@@ -162,8 +163,11 @@ def get_authors() -> list:
     data = load_metadata()
     authors = set()
     for b in data.get("books", {}).values():
-        if not b.get("missing") and b.get("author"):
-            authors.add(b["author"])
+        if not b.get("missing") and not b.get("hidden") and b.get("author"):
+            for a in b["author"].split(","):
+                a = a.strip()
+                if a:
+                    authors.add(a)
     return sorted(authors)
 
 
@@ -171,7 +175,7 @@ def get_series_list() -> list:
     data = load_metadata()
     series = set()
     for b in data.get("books", {}).values():
-        if not b.get("missing") and b.get("series"):
+        if not b.get("missing") and not b.get("hidden") and b.get("series"):
             series.add(b["series"])
     return sorted(series)
 
@@ -180,7 +184,7 @@ def get_tags_list() -> list:
     data = load_metadata()
     tags = set()
     for b in data.get("books", {}).values():
-        if not b.get("missing"):
+        if not b.get("missing") and not b.get("hidden"):
             for t in b.get("tags") or []:
                 tags.add(t)
     return sorted(tags)
