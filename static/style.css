@@ -820,6 +820,22 @@ input:focus, select:focus {
 }
 .admin-upload-btn:hover { background: var(--bg2); color: var(--accent); border-color: var(--accent-dim); }
 
+.admin-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--text-muted);
+  transition: background 0.12s, color 0.12s;
+}
+.admin-delete-btn:hover { background: var(--bg2); color: #e05555; border-color: #e05555; }
+
 /* Fields */
 .admin-fields { min-width: 0; }
 

@@ -501,6 +501,9 @@ async function renderAdmin() {
             &#8593;<input type="file" accept="image/jpeg,image/png,image/webp"
               class="admin-cover-input" data-id="${b.book_id}" style="display:none">
           </label>
+          ${b.has_cover
+            ? `<button class="admin-delete-btn" data-id="${b.book_id}" title="Remove cover">&#215;</button>`
+            : ""}
         </div>
         <div class="admin-fields">
           <div class="admin-path">${esc(b.path)}${b.missing ? ' <span class="missing-badge">missing</span>' : ""}</div>
@@ -1140,6 +1143,35 @@ async function renderAdmin() {
         } finally {
           setTimeout(() => { status.textContent = ""; }, 3000);
           input.value = "";
+        }
+      });
+    });
+
+    // Cover delete
+    document.querySelectorAll(".admin-delete-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        const status = document.getElementById(`status-${id}`);
+        status.textContent = "Removing…";
+        status.className = "admin-status";
+        try {
+          const res = await fetch(`/api/admin/books/${id}/cover`, {
+            method: "DELETE", credentials: "same-origin",
+          });
+          if (!res.ok) throw new Error(await res.text());
+          const initials_text = esc(initials((books.find(b => b.book_id === id) || {}).title || ""));
+          document.getElementById(`thumb-${id}`).innerHTML =
+            `<div class="admin-cover-placeholder">${initials_text}</div>`;
+          const book = books.find(b => b.book_id === id);
+          if (book) book.has_cover = false;
+          btn.remove();
+          status.textContent = "Removed";
+          status.className = "admin-status admin-status-ok";
+        } catch {
+          status.textContent = "Remove failed";
+          status.className = "admin-status admin-status-err";
+        } finally {
+          setTimeout(() => { status.textContent = ""; }, 3000);
         }
       });
     });

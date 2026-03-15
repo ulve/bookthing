@@ -553,6 +553,14 @@ def fetch_book_description(book_id: str, _session=Depends(require_admin)):
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 
+@app.delete("/api/admin/books/{book_id}/cover")
+def admin_delete_cover(book_id: str, _session=Depends(require_admin)):
+    ok = books_module.clear_book_cover(book_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return {"ok": True}
+
+
 @app.post("/api/admin/books/{book_id}/cover")
 async def admin_upload_cover(book_id: str, file: UploadFile = File(...), _session=Depends(require_admin)):
     if file.content_type not in ALLOWED_IMAGE_TYPES:

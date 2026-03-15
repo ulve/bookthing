@@ -85,6 +85,22 @@ def set_book_cover(book_id: str, cover_path_rel: str):
     return True
 
 
+def clear_book_cover(book_id: str) -> bool:
+    """Remove a book's cover, deleting the uploaded file if there is one."""
+    with _metadata_lock:
+        data = load_metadata()
+        book = data.get("books", {}).get(book_id)
+        if not book:
+            return False
+        cover = book.get("cover")
+        if cover and cover.startswith(COVER_PREFIX):
+            file_path = COVERS_DIR / cover[len(COVER_PREFIX):]
+            file_path.unlink(missing_ok=True)
+        book.pop("cover", None)
+        save_metadata(data)
+    return True
+
+
 def get_book_list(search: str = None, author: str = None, series: str = None, tags: str = None) -> list:
     data = load_metadata()
     books = list(data.get("books", {}).values())
