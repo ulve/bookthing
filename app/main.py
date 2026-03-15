@@ -655,9 +655,13 @@ async def set_user_debug_logging(email: str, request: Request, _=Depends(require
 # Static files — must be last
 # ---------------------------------------------------------------------------
 
-# SPA fallback: reload on /book/<id> returns index.html
+# SPA fallback: reload on /book/<id> or /admin returns index.html
 @app.get("/book/{book_id}")
 async def spa_book(book_id: str):
+    return FileResponse(static_dir / "index.html")
+
+@app.get("/admin")
+async def spa_admin():
     return FileResponse(static_dir / "index.html")
 
 app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
