@@ -29,6 +29,10 @@ static_dir = BASE_DIR / "static"
 @app.on_event("startup")
 def startup():
     init_db()
+    if not AUDIOBOOKS_PATH.exists() or not AUDIOBOOKS_PATH.is_dir():
+        logging.getLogger(__name__).warning(
+            "Audiobooks directory not found or not a directory: %s", AUDIOBOOKS_PATH
+        )
     # Bootstrap: ensure ADMIN_EMAIL is in allowed_emails and has a user row
     if ADMIN_EMAIL:
         now = int(time.time())

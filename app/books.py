@@ -3,7 +3,7 @@ import threading
 from pathlib import Path
 from app.config import METADATA_PATH, AUDIOBOOKS_PATH, COVERS_DIR
 
-_metadata_lock = threading.Lock()
+_metadata_lock = threading.RLock()
 
 # Uploaded cover files are stored as data/covers/{book_id}.{ext}
 # and referenced in metadata.json as "__covers/{book_id}.{ext}"
@@ -11,10 +11,11 @@ COVER_PREFIX = "__covers/"
 
 
 def load_metadata() -> dict:
-    if not METADATA_PATH.exists():
-        return {"books": {}}
-    with open(METADATA_PATH) as f:
-        return json.load(f)
+    with _metadata_lock:
+        if not METADATA_PATH.exists():
+            return {"books": {}}
+        with open(METADATA_PATH) as f:
+            return json.load(f)
 
 
 def save_metadata(data: dict):
