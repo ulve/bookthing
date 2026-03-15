@@ -221,35 +221,8 @@ async function renderLibrary() {
   await refreshLibraryView(session);
 }
 
-async function refreshLibraryView(session) {
-  if (!session) session = await getSession();
-  const params = new URLSearchParams();
-  if (filterState.search) params.set("search", filterState.search);
-  if (filterState.author) params.set("author", filterState.author);
-  if (filterState.series) params.set("series", filterState.series);
-  if (filterState.tags.length) params.set("tags", filterState.tags.join(","));
-
-  let books, positions;
-  try {
-    [books, positions] = await Promise.all([
-      api(`/api/books?${params}`),
-      api("/api/positions").catch(() => ({})),
-    ]);
-  } catch (_) { return; }
-
-  const authorsOptions = (metaCache.authors || [])
-    .map(a => `<option value="${esc(a)}" ${filterState.author === a ? "selected" : ""}>${esc(a)}</option>`)
-    .join("");
-
-  const seriesOptions = (metaCache.series || [])
-    .map(s => `<option value="${esc(s)}" ${filterState.series === s ? "selected" : ""}>${esc(s)}</option>`)
-    .join("");
-
-  const tagChipsFilter = (metaCache.tags || [])
-    .map(t => `<span class="tag-chip filter-tag-chip${filterState.tags.includes(t) ? " active" : ""}" data-tag="${esc(t)}">${esc(t)}</span>`)
-    .join("");
-
-  const bookCards = books.length
+function buildBookCards(books, positions) {
+  return books.length
     ? books.map(b => {
         const pos = positions[b.book_id];
         let pct = 0;
@@ -279,6 +252,43 @@ async function refreshLibraryView(session) {
         </div>`;
       }).join("")
     : `<div class="empty-state"><p>No books found.</p></div>`;
+}
+
+async function refreshLibraryView(session) {
+  if (!session) session = await getSession();
+  const params = new URLSearchParams();
+  if (filterState.search) params.set("search", filterState.search);
+  if (filterState.author) params.set("author", filterState.author);
+  if (filterState.series) params.set("series", filterState.series);
+  if (filterState.tags.length) params.set("tags", filterState.tags.join(","));
+
+  let books, positions;
+  try {
+    [books, positions] = await Promise.all([
+      api(`/api/books?${params}`),
+      api("/api/positions").catch(() => ({})),
+    ]);
+  } catch (_) { return; }
+
+  // If the layout is already mounted, only update the book grid to preserve focus
+  const grid = document.getElementById("book-grid");
+  if (grid) {
+    grid.innerHTML = buildBookCards(books, positions);
+    return;
+  }
+
+  // Initial render — build the full layout and wire up event listeners
+  const authorsOptions = (metaCache.authors || [])
+    .map(a => `<option value="${esc(a)}" ${filterState.author === a ? "selected" : ""}>${esc(a)}</option>`)
+    .join("");
+
+  const seriesOptions = (metaCache.series || [])
+    .map(s => `<option value="${esc(s)}" ${filterState.series === s ? "selected" : ""}>${esc(s)}</option>`)
+    .join("");
+
+  const tagChipsFilter = (metaCache.tags || [])
+    .map(t => `<span class="tag-chip filter-tag-chip${filterState.tags.includes(t) ? " active" : ""}" data-tag="${esc(t)}">${esc(t)}</span>`)
+    .join("");
 
   app.innerHTML = `
     ${headerHtml(session)}
@@ -310,7 +320,7 @@ async function refreshLibraryView(session) {
         </div>
         <button class="btn btn-clear" id="clear-filters">Clear filters</button>
       </aside>
-      <div class="book-grid" id="book-grid">${bookCards}</div>
+      <div class="book-grid" id="book-grid">${buildBookCards(books, positions)}</div>
     </div>`;
 
   // Restore scroll position when returning from a book detail page
