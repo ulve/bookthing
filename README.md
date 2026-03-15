@@ -41,6 +41,8 @@ On first start, the app emails a login link to `ADMIN_EMAIL`. Check your inbox, 
 | `ADMIN_EMAIL` | Bootstrapped as admin on first start; receives the first login link |
 | `GMAIL_SENDER` | Gmail address used to send login emails |
 | `GMAIL_APP_PASSWORD` | Gmail App Password (not your account password) |
+| `CLIENT_LOG_LEVEL` | Minimum level for browser logs written to disk: `debug`, `info`, `warning`, `error` (default: `warning`). Per-user debug logging can be toggled in the admin UI regardless of this setting. |
+| `CLIENT_LOG_PATH` | Path for the browser log file (default: next to `metadata.json`, i.e. `data/client.log`) |
 
 The audiobooks volume (`/audiobooks:ro`) should point to wherever your audio files live on the host. The `./data` volume is where the app stores its database, metadata, and uploaded covers — back this up.
 
@@ -112,6 +114,7 @@ Everything persistent lives in `./data/` (mounted as a Docker volume):
 | `data/metadata.json` | All book metadata (titles, authors, tags, descriptions, etc.) |
 | `data/covers/` | Uploaded cover images |
 | `data/bookthing.db` | Sessions, magic links, and user list |
+| `data/client.log` | Browser-side log (JS errors, navigation, playback events) — rotated at 5 MB, up to 5 files |
 
 This directory lives on the host machine — it survives rebuilds, restarts, and image updates. **Back this up.**
 

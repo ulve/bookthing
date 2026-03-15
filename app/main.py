@@ -10,6 +10,7 @@ import time
 import urllib.parse
 import urllib.request
 import zipfile
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile, File
@@ -18,12 +19,20 @@ from fastapi.staticfiles import StaticFiles
 
 from app import books as books_module
 from app.auth import consume_magic_link, require_auth, require_admin, request_magic_link, get_or_create_user, send_magic_email
-from app.config import BASE_DIR, AUDIOBOOKS_PATH, COVERS_DIR, ADMIN_EMAIL, BASE_URL, SECURE_COOKIES
+from app.config import BASE_DIR, AUDIOBOOKS_PATH, COVERS_DIR, ADMIN_EMAIL, BASE_URL, SECURE_COOKIES, CLIENT_LOG_PATH, CLIENT_LOG_LEVEL
 from app.db import get_db, init_db
 from app.streaming import stream_audio
 
 app = FastAPI(docs_url=None, redoc_url=None)
 static_dir = BASE_DIR / "static"
+
+CLIENT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+client_logger = logging.getLogger("client")
+client_logger.setLevel(logging.DEBUG)
+_ch = RotatingFileHandler(CLIENT_LOG_PATH, maxBytes=5 * 1024 * 1024, backupCount=5)
+_ch.setFormatter(logging.Formatter("%(message)s"))
+client_logger.addHandler(_ch)
+client_logger.propagate = False
 
 
 @app.on_event("startup")
@@ -586,6 +595,60 @@ async def admin_upload_cover(book_id: str, file: UploadFile = File(...), _sessio
     dest.write_bytes(content)
     books_module.set_book_cover(book_id, filename)
     return {"ok": True, "filename": filename}
+
+
+# ---------------------------------------------------------------------------
+# Client-side logging
+# ---------------------------------------------------------------------------
+
+@app.post("/api/log")
+async def client_log(request: Request, user=Depends(require_auth)):
+    body = await request.json()
+    level = str(body.get("level", "info")).lower()
+    message = str(body.get("message", ""))[:2000]
+    data = body.get("data")
+
+    with get_db() as db:
+        row = db.execute("SELECT debug_logging FROM users WHERE email = ?", (user["email"],)).fetchone()
+    user_debug = bool(row and row["debug_logging"])
+
+    effective_level = logging.DEBUG if user_debug else getattr(logging, CLIENT_LOG_LEVEL, logging.WARNING)
+    msg_level = getattr(logging, level.upper(), logging.INFO)
+    if msg_level < effective_level:
+        return {"ok": True}
+
+    entry = {
+        "ts": time.time(),
+        "level": level,
+        "user": user["email"],
+        "ua": request.headers.get("user-agent", ""),
+        "msg": message,
+        "data": data,
+    }
+    client_logger.log(msg_level, _json.dumps(entry))
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Admin — users
+# ---------------------------------------------------------------------------
+
+@app.get("/api/admin/users")
+def list_users(_=Depends(require_admin)):
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT email, is_admin, debug_logging, created_at FROM users ORDER BY created_at DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.patch("/api/admin/users/{email:path}/debug-logging")
+async def set_user_debug_logging(email: str, request: Request, _=Depends(require_admin)):
+    body = await request.json()
+    enabled = bool(body.get("enabled", False))
+    with get_db() as db:
+        db.execute("UPDATE users SET debug_logging = ? WHERE email = ?", (int(enabled), email))
+    return {"ok": True, "email": email, "debug_logging": enabled}
 
 
 # ---------------------------------------------------------------------------

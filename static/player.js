@@ -146,11 +146,16 @@ audio.addEventListener("ended", () => {
   const files = state.book?.files || [];
   savePosition();
   if (state.trackIndex < files.length - 1) {
+    window.clientLog?.("info", "track advance", { book_id: state.book?.book_id, track: state.trackIndex + 1 });
     loadTrack(state.trackIndex + 1, 0);
   }
 });
 audio.addEventListener("error", () => {
-  console.error("Audio error on track", state.trackIndex);
+  window.clientLog?.("error", "audio error", {
+    book_id: state.book?.book_id,
+    track: state.trackIndex,
+    error: audio.error?.message,
+  });
 });
 
 btnPlay.addEventListener("click", () => {
@@ -198,6 +203,7 @@ speedSelect.addEventListener("change", () => {
 // ── Public API ─────────────────────────────────────────────────────
 
 async function loadBook(book, forceTrackIndex = null, { paused = false } = {}) {
+  window.clientLog?.("info", "load book", { book_id: book.book_id, title: book.title });
   state.book = book;
 
   // Remember last-played book across page reloads

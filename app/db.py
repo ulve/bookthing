@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS users (
     user_id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     is_admin INTEGER DEFAULT 0,
-    created_at INTEGER
+    created_at INTEGER,
+    debug_logging INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS allowed_emails (
@@ -55,6 +56,7 @@ MIGRATIONS = [
     "ALTER TABLE magic_links ADD COLUMN email TEXT",
     "ALTER TABLE sessions ADD COLUMN user_id TEXT",
     "ALTER TABLE positions ADD COLUMN user_id TEXT",
+    "ALTER TABLE users ADD COLUMN debug_logging INTEGER DEFAULT 0",
 ]
 
 

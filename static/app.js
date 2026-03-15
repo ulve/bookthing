@@ -5,6 +5,28 @@ import { fmt } from "./player.js";
 
 const app = document.getElementById("app");
 
+// ── Client-side logging ─────────────────────────────────────────────
+
+window.clientLog = function clientLog(level, message, data) {
+  const lvl = level || "info";
+  console[lvl === "error" ? "error" : lvl === "warn" ? "warn" : "log"](
+    "[client]", message, data ?? ""
+  );
+  fetch("/api/log", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ level: lvl, message, data }),
+  }).catch(() => {});  // never let logging break the app
+}
+
+window.onerror = (msg, src, line, col, err) => {
+  clientLog("error", String(msg), { src, line, col, stack: err?.stack });
+};
+window.onunhandledrejection = (e) => {
+  clientLog("error", "Unhandled promise rejection", { reason: String(e.reason) });
+};
+
 // ── API client ─────────────────────────────────────────────────────
 
 async function api(path, opts = {}) {
@@ -41,6 +63,7 @@ window.addEventListener("popstate", route);
 
 function route() {
   const path = location.pathname;
+  clientLog("info", "navigate", { path });
   if (path === "/admin") {
     renderAdmin();
   } else {
@@ -346,6 +369,7 @@ async function renderBookDetail(bookId) {
   try {
     [book, session] = await Promise.all([api(`/api/books/${bookId}`), getSession()]);
   } catch (_) { return; }
+  clientLog("info", "book detail", { book_id: bookId, title: book.title });
 
   const seriesLine = book.series
     ? `<div class="series">${esc(book.series)}${book.number_in_series != null ? ` #${book.number_in_series}` : ""}</div>`
@@ -409,6 +433,7 @@ async function renderBookDetail(bookId) {
   });
 
   document.getElementById("play-btn").addEventListener("click", () => {
+    clientLog("info", "play", { book_id: book.book_id, title: book.title });
     window.Player?.loadBook(book);
   });
 
@@ -419,6 +444,7 @@ async function renderBookDetail(bookId) {
   document.querySelectorAll(".track-item").forEach(el => {
     el.addEventListener("click", () => {
       const idx = parseInt(el.dataset.index, 10);
+      clientLog("info", "select track", { book_id: book.book_id, track: idx });
       if (window.Player?.currentBookId() === book.book_id) {
         window.Player.jumpToTrack(idx);
       } else {
@@ -433,15 +459,16 @@ async function renderBookDetail(bookId) {
 async function renderAdmin() {
   app.innerHTML = `<div class="centered-msg"><span>Loading…</span></div>`;
 
-  let books, allAuthors, allSeries, allTags, activity, allowedEmails;
+  let books, allAuthors, allSeries, allTags, activity, allowedEmails, users;
   try {
-    [books, allAuthors, allSeries, allTags, activity, allowedEmails] = await Promise.all([
+    [books, allAuthors, allSeries, allTags, activity, allowedEmails, users] = await Promise.all([
       api("/api/admin/books"),
       api("/api/authors").catch(() => []),
       api("/api/series").catch(() => []),
       api("/api/tags").catch(() => []),
       api("/api/admin/activity").catch(() => []),
       api("/api/admin/allowed-emails").catch(() => []),
+      api("/api/admin/users").catch(() => []),
     ]);
   } catch {
     app.innerHTML = `<div class="centered-msg"><h2>Access denied</h2><p>Admin access required.</p></div>`;
@@ -617,6 +644,19 @@ async function renderAdmin() {
       </div>
     </div>
 
+    <div class="activity-section">
+      <div class="activity-header" id="users-toggle">
+        <span>Users</span>
+        <span class="activity-caret">▾</span>
+      </div>
+      <div class="activity-body hidden" id="users-body">
+        <table class="activity-table" id="users-table">
+          <thead><tr><th>Email</th><th>Admin</th><th>Debug logging</th></tr></thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="admin-toolbar">
       <input type="text" id="admin-search" placeholder="Filter by title, author or path…" style="flex:1;max-width:400px">
       <button class="btn" id="bulk-toggle">Bulk Apply ▾</button>
@@ -760,6 +800,51 @@ async function renderAdmin() {
     }
   });
 
+  // ── Users ──────────────────────────────────────────────────────────
+  document.getElementById("users-toggle").addEventListener("click", () => {
+    const body = document.getElementById("users-body");
+    const hidden = body.classList.toggle("hidden");
+    document.querySelector("#users-toggle .activity-caret").textContent = hidden ? "▾" : "▴";
+  });
+
+  function renderUsersTable(userList) {
+    document.getElementById("users-tbody").innerHTML = userList.map(u => `
+      <tr data-email="${esc(u.email)}">
+        <td>${esc(u.email)}</td>
+        <td>${u.is_admin ? "✓" : ""}</td>
+        <td>
+          <label class="debug-toggle">
+            <input type="checkbox" class="debug-logging-chk" data-email="${esc(u.email)}"
+              ${u.debug_logging ? "checked" : ""}>
+            <span class="debug-toggle-label">${u.debug_logging ? "On" : "Off"}</span>
+          </label>
+        </td>
+      </tr>`).join("");
+    document.querySelectorAll(".debug-logging-chk").forEach(chk => {
+      chk.addEventListener("change", async () => {
+        const email = chk.dataset.email;
+        const enabled = chk.checked;
+        chk.disabled = true;
+        try {
+          await api(`/api/admin/users/${encodeURIComponent(email)}/debug-logging`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+          });
+          const u = users.find(u => u.email === email);
+          if (u) u.debug_logging = enabled ? 1 : 0;
+          chk.nextElementSibling.textContent = enabled ? "On" : "Off";
+        } catch {
+          chk.checked = !enabled;
+        } finally {
+          chk.disabled = false;
+        }
+      });
+    });
+  }
+
+  renderUsersTable(users);
+
   // ── Scan ─────────────────────────────────────────────────────────
   document.getElementById("scan-btn").addEventListener("click", async () => {
     const btn = document.getElementById("scan-btn");
@@ -774,6 +859,7 @@ async function renderAdmin() {
       out.textContent = data.output || (data.ok ? "Scan complete." : "Scan failed.");
       out.className = "scan-output" + (data.ok ? "" : " scan-output-error");
     } catch (e) {
+      clientLog("error", "Scan request failed", { message: e.message });
       out.textContent = "Scan request failed: " + e.message;
       out.className = "scan-output scan-output-error";
     }
