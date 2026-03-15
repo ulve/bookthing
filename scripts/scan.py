@@ -347,5 +347,74 @@ def main():
     print(f"\nDone. {total} books written to {METADATA_PATH}")
 
 
+def rescan_book(book_id: str) -> tuple[bool, str]:
+    """Rescan a single book by book_id. Returns (success, message)."""
+    if not METADATA_PATH.exists():
+        return False, "No metadata found"
+
+    with open(METADATA_PATH) as f:
+        existing_data = json.load(f)
+
+    existing_books = existing_data.get("books", {})
+    if book_id not in existing_books:
+        return False, f"Book {book_id!r} not found in metadata"
+
+    existing = existing_books[book_id]
+    book_path_str = existing.get("path", "")
+
+    # Single-file book: path is the audio file itself
+    if Path(book_path_str).suffix.lower() in AUDIO_EXTENSIONS:
+        audio_path = AUDIOBOOKS_PATH / book_path_str
+        candidates = [BookCandidate(audio_path.parent, [audio_path], "single")] if is_audio(audio_path) else []
+    else:
+        book_dir = AUDIOBOOKS_PATH / book_path_str
+        candidates: list[BookCandidate] = []
+        if book_dir.is_dir():
+            walk_for_books(book_dir, candidates, AUDIOBOOKS_PATH, depth=1)
+
+    if not candidates:
+        existing_books[book_id]["missing"] = True
+        sorted_books = dict(sorted(existing_books.items(), key=lambda x: x[1].get("path", "")))
+        METADATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(METADATA_PATH, "w") as f:
+            json.dump({"books": sorted_books}, f, indent=2, ensure_ascii=False)
+        return False, f"No audio files found at: {book_path_str}"
+
+    # Find the candidate that matches this book_id (path-derived)
+    matched = None
+    for c in candidates:
+        entry = candidate_to_entry(c, AUDIOBOOKS_PATH)
+        if entry["book_id"] == book_id:
+            matched = entry
+            break
+    if matched is None:
+        matched = candidate_to_entry(candidates[0], AUDIOBOOKS_PATH)
+
+    merged = merge(existing, matched)
+    merged["file_durations"] = read_durations(merged["files"], AUDIOBOOKS_PATH)
+
+    # Replace old entry (book_id won't change for same path)
+    existing_books.pop(book_id, None)
+    existing_books[merged["book_id"]] = merged
+
+    sorted_books = dict(sorted(existing_books.items(), key=lambda x: x[1].get("path", "")))
+    METADATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(METADATA_PATH, "w") as f:
+        json.dump({"books": sorted_books}, f, indent=2, ensure_ascii=False)
+
+    n = len(merged["files"])
+    return True, f"Rescanned: {matched['path']} ({n} file{'s' if n != 1 else ''})"
+
+
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--book-id", help="Rescan a single book by ID instead of the full library")
+    args = parser.parse_args()
+
+    if args.book_id:
+        ok, msg = rescan_book(args.book_id)
+        print(msg)
+        sys.exit(0 if ok else 1)
+    else:
+        main()

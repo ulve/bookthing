@@ -590,6 +590,7 @@ async function renderAdmin() {
         <div class="admin-actions-cell">
           <button class="btn admin-strip-btn" data-id="${b.book_id}" title="Replace underscores with spaces in all fields">Fix _</button>
           <button class="btn admin-hide-btn ${b.hidden ? "admin-hide-btn-on" : ""}" data-id="${b.book_id}" data-hidden="${b.hidden ? "1" : "0"}" title="${b.hidden ? "Unhide this book" : "Hide from library"}">${b.hidden ? "Unhide" : "Hide"}</button>
+          <button class="btn admin-rescan-btn" data-id="${b.book_id}" title="Re-scan this book's folder to pick up new or changed files">Rescan</button>
           ${b.missing ? `<button class="btn admin-delete-btn" data-id="${b.book_id}" title="Remove this missing entry">Delete</button>` : ""}
           <button class="btn btn-accent admin-save-btn" data-id="${b.book_id}">Save</button>
           <span class="admin-status" id="status-${b.book_id}"></span>
@@ -1039,6 +1040,38 @@ async function renderAdmin() {
       if (input.id === "bulk-tags") return; // already wired above
       input.addEventListener("input", () => showTagAutocomplete(input, allTags));
       input.addEventListener("focus", () => showTagAutocomplete(input, allTags));
+    });
+
+    // Rescan button
+    document.querySelectorAll(".admin-rescan-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        const status = document.getElementById(`status-${id}`);
+        btn.disabled = true;
+        btn.textContent = "Scanning…";
+        status.textContent = "";
+        status.className = "admin-status";
+        try {
+          const data = await api(`/api/admin/books/${id}/rescan`, { method: "POST" });
+          if (data.ok) {
+            status.textContent = data.output?.trim() || "Rescanned.";
+            status.className = "admin-status admin-status-ok";
+            // Reload admin data to reflect updated files/cover
+            await loadAdmin();
+          } else {
+            status.textContent = data.output?.trim() || "Rescan failed.";
+            status.className = "admin-status admin-status-err";
+            btn.disabled = false;
+            btn.textContent = "Rescan";
+          }
+        } catch (e) {
+          clientLog("error", "Rescan failed", { id, message: e.message });
+          status.textContent = "Rescan failed.";
+          status.className = "admin-status admin-status-err";
+          btn.disabled = false;
+          btn.textContent = "Rescan";
+        }
+      });
     });
 
     // Strip underscores button

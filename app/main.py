@@ -420,6 +420,19 @@ async def admin_scan(_session=Depends(require_admin)):
     return {"ok": proc.returncode == 0, "output": output}
 
 
+@app.post("/api/admin/books/{book_id}/rescan")
+async def admin_rescan_book(book_id: str, _session=Depends(require_admin)):
+    script = BASE_DIR / "scripts" / "scan.py"
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable, str(script), "--book-id", book_id,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+    stdout, _ = await proc.communicate()
+    output = stdout.decode(errors="replace")
+    return {"ok": proc.returncode == 0, "output": output}
+
+
 # ---------------------------------------------------------------------------
 # Admin activity log
 # ---------------------------------------------------------------------------
