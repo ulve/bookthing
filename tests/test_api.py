@@ -132,9 +132,10 @@ class TestMagicLinkFlow:
         assert resp.status_code == 200
         assert "text/html" in resp.headers["content-type"]
 
-    def test_invalid_magic_link_post_returns_404(self, client):
+    def test_invalid_magic_link_post_redirects_to_error_page(self, client):
         resp = client.post("/auth/magic/badtoken", follow_redirects=False)
-        assert resp.status_code == 404
+        assert resp.status_code == 303
+        assert resp.headers["location"] == "/auth/magic/badtoken"
 
     def test_valid_magic_link_redirects(self, client):
         now = int(time.time())

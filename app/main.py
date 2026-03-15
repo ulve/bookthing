@@ -78,11 +78,8 @@ async def auth_request(request: Request):
     return {"ok": True}
 
 
-@app.get("/auth/magic/{token}")
-def magic_link_page(token: str):
-    """Show a confirmation page — don't consume the token yet.
-    This prevents email scanners from consuming the link on prefetch."""
-    html = f"""<!DOCTYPE html>
+def _magic_link_html(token: str, body_html: str) -> str:
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -94,26 +91,100 @@ def magic_link_page(token: str):
 <body>
   <div id="app">
     <div class="site-header">
-      <img src="/logo2.webp" alt="Bookthing" class="site-logo">
+      <div class="site-brand">
+        <img src="/icon-nav.svg" alt="" class="site-icon">
+        <span class="site-name">bookthing</span>
+      </div>
     </div>
     <div class="login-wrap">
       <div class="login-card">
-        <h2 class="login-title">Sign in to Bookthing</h2>
-        <p class="login-hint">Click the button below to complete your sign-in.</p>
-        <form method="post" action="/auth/magic/{token}">
-          <button type="submit" class="btn btn-accent">Sign in</button>
-        </form>
+        {body_html}
       </div>
     </div>
   </div>
 </body>
 </html>"""
-    return HTMLResponse(html)
+
+
+@app.get("/auth/magic/{token}")
+def magic_link_page(token: str):
+    """Show a confirmation page — don't consume the token yet.
+    This prevents email scanners from consuming the link on prefetch."""
+    now = int(time.time())
+    with get_db() as db:
+        row = db.execute("SELECT email, expires_at, used_at, multi_use FROM magic_links WHERE token = ?", (token,)).fetchone()
+
+    if not row:
+        body = """<h2 class="login-title">Link not found</h2>
+        <p class="login-hint">This sign-in link is invalid. Please request a new one.</p>
+        <a href="/login" class="btn btn-accent">Back to sign in</a>"""
+    elif row["expires_at"] < now:
+        email = row["email"] or ""
+        body = f"""<h2 class="login-title">Link expired</h2>
+        <p class="login-hint">This sign-in link expired after 1 hour. Enter your email below to get a new one.</p>
+        <form id="login-form" autocomplete="on">
+          <input id="email-input" type="email" name="email" placeholder="you@example.com"
+                 autocomplete="email" required value="{email}">
+          <button type="submit" class="btn btn-accent" id="submit-btn">Send new login link</button>
+        </form>
+        <p class="login-msg hidden" id="success-msg">&#10003; Check your inbox — a login link is on its way.</p>
+        <p class="login-msg login-error hidden" id="error-msg"></p>
+        <script>
+          const form = document.getElementById("login-form");
+          const btn = document.getElementById("submit-btn");
+          const successMsg = document.getElementById("success-msg");
+          const errorMsg = document.getElementById("error-msg");
+          form.addEventListener("submit", async (e) => {{
+            e.preventDefault();
+            const email = document.getElementById("email-input").value.trim();
+            btn.disabled = true;
+            btn.textContent = "Sending\u2026";
+            errorMsg.classList.add("hidden");
+            try {{
+              const res = await fetch("/auth/request", {{
+                method: "POST",
+                headers: {{"Content-Type": "application/json"}},
+                body: JSON.stringify({{ email }}),
+              }});
+              if (res.ok) {{
+                form.classList.add("hidden");
+                successMsg.classList.remove("hidden");
+              }} else {{
+                const data = await res.json().catch(() => ({{}}));
+                errorMsg.textContent = data.detail || "Something went wrong. Please try again.";
+                errorMsg.classList.remove("hidden");
+                btn.disabled = false;
+                btn.textContent = "Send new login link";
+              }}
+            }} catch {{
+              errorMsg.textContent = "Network error. Please try again.";
+              errorMsg.classList.remove("hidden");
+              btn.disabled = false;
+              btn.textContent = "Send new login link";
+            }}
+          }});
+        </script>"""
+    elif not row["multi_use"] and row["used_at"] is not None:
+        body = """<h2 class="login-title">Link already used</h2>
+        <p class="login-hint">This sign-in link has already been used. Please request a new one.</p>
+        <a href="/login" class="btn btn-accent">Back to sign in</a>"""
+    else:
+        body = f"""<h2 class="login-title">Sign in to Bookthing</h2>
+        <p class="login-hint">Click the button below to complete your sign-in.</p>
+        <form method="post" action="/auth/magic/{token}">
+          <button type="submit" class="btn btn-accent">Sign in</button>
+        </form>"""
+
+    return HTMLResponse(_magic_link_html(token, body))
 
 
 @app.post("/auth/magic/{token}")
 def magic_link(token: str):
-    session_id = consume_magic_link(token)
+    try:
+        session_id = consume_magic_link(token)
+    except HTTPException as exc:
+        # Redirect to the GET page which will show the appropriate error
+        return RedirectResponse(url=f"/auth/magic/{token}", status_code=303)
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(
         key="session",
