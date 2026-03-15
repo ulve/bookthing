@@ -231,7 +231,7 @@ def cover(book_id: str, _session=Depends(require_auth)):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/download/{book_id}")
-def download(book_id: str, _session=Depends(require_auth)):
+async def download(book_id: str, _session=Depends(require_auth)):
     book = books_module.get_book_detail(book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -239,11 +239,17 @@ def download(book_id: str, _session=Depends(require_auth)):
     if not files:
         raise HTTPException(status_code=404, detail="No files")
 
-    if len(files) == 1:
-        return RedirectResponse(url=f"/api/stream/{book_id}/0")
-
     title = book.get("title") or book_id
     author = book.get("author") or ""
+
+    if len(files) == 1:
+        file_path = files[0]
+        filename = f"{author} - {title}{file_path.suffix}".strip(" -")
+        encoded_filename = urllib.parse.quote(filename, safe="")
+        response = await stream_audio(file_path, None)
+        response.headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{encoded_filename}"
+        return response
+
     zip_name = f"{author} - {title}.zip".strip(" -")
     encoded_name = urllib.parse.quote(zip_name, safe="")
 
