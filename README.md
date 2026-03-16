@@ -2,7 +2,21 @@
 
 A self-hosted audiobook streaming web app with magic-link authentication. No passwords — users get a login link sent to their email.
 
-![Bookthing screenshot](docs/screenshot.png)
+![Library view](docs/screenshots/library.png)
+
+<details>
+<summary>More screenshots</summary>
+
+**Filters**
+![Filters](docs/screenshots/filters.png)
+
+**Book detail** (description, Goodreads link, chapters, listening log)
+![Book detail](docs/screenshots/book-detail.png)
+
+**Player bar**
+![Player](docs/screenshots/player.png)
+
+</details>
 
 ## Requirements
 
