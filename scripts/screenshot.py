@@ -331,16 +331,11 @@ def main():
                 page.screenshot(path=str(OUTPUT_DIR / "login.png"), full_page=True)
                 print(f"  Saved {OUTPUT_DIR / 'login.png'}")
 
-                # --- library.png ---
-                print("Capturing library.png ...")
+                # --- filters.png ---
+                # Load the library first (needed for filters screenshot too)
+                print("Capturing filters.png ...")
                 page.goto(f"{base_url}/")
                 page.wait_for_selector(".book-card", timeout=10000)
-                page.screenshot(path=str(OUTPUT_DIR / "library.png"), full_page=True)
-                print(f"  Saved {OUTPUT_DIR / 'library.png'}")
-
-                # --- filters.png ---
-                print("Capturing filters.png ...")
-                # Open the filter sidebar if it's not visible
                 toggle = page.locator("#filter-toggle-btn")
                 sidebar = page.locator("#filter-sidebar")
                 if not sidebar.is_visible():
@@ -356,16 +351,27 @@ def main():
                 page.screenshot(path=str(OUTPUT_DIR / "book-detail.png"), full_page=True)
                 print(f"  Saved {OUTPUT_DIR / 'book-detail.png'}")
 
-                # --- player.png ---
-                print("Capturing player.png ...")
-                # Click the Play button to trigger the player bar
+                # --- player.png + library.png ---
+                # Start playback so the player bar is visible for both shots
+                print("Starting playback for player bar ...")
                 play_btn = page.locator("#play-btn")
                 play_btn.click()
                 try:
                     page.wait_for_selector("#player-bar:not(.hidden)", timeout=8000)
                 except Exception:
-                    print("  Warning: player bar did not appear; screenshotting anyway")
+                    print("  Warning: player bar did not appear")
+
+                print("Capturing player.png ...")
                 page.locator("#player-bar").screenshot(path=str(OUTPUT_DIR / "player.png"))
+                print(f"  Saved {OUTPUT_DIR / 'player.png'}")
+
+                # --- library.png --- (player bar now visible)
+                print("Capturing library.png ...")
+                page.goto(f"{base_url}/")
+                page.wait_for_selector(".book-card", timeout=10000)
+                page.wait_for_selector("#player-bar:not(.hidden)", timeout=5000)
+                page.screenshot(path=str(OUTPUT_DIR / "library.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'library.png'}")
                 print(f"  Saved {OUTPUT_DIR / 'player.png'}")
 
                 browser.close()
