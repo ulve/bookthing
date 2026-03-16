@@ -929,6 +929,27 @@ async function renderAdmin() {
       </div>
     </div>
 
+    <div class="admin-tag-tools" id="admin-tag-tools">
+      <div class="admin-bulk-inner">
+        <div class="admin-bulk-title">Tag Tools</div>
+        <div class="admin-bulk-form">
+          <div class="admin-bulk-field">
+            <label>Tag to remove / rename</label>
+            <input type="text" id="tag-old" class="admin-input-tags" placeholder="existing tag" list="dl-admin-tags">
+            <datalist id="dl-admin-tags">${allTags.map(t => `<option value="${esc(t)}">`).join("")}</datalist>
+          </div>
+          <div class="admin-bulk-field">
+            <label>Rename to <span class="field-hint">blank = remove</span></label>
+            <input type="text" id="tag-new" class="admin-input-tags" placeholder="new tag name (leave blank to remove)">
+          </div>
+        </div>
+        <div class="admin-bulk-actions">
+          <button class="btn btn-accent" id="tag-apply">Apply</button>
+          <span class="admin-status" id="tag-status"></span>
+        </div>
+      </div>
+    </div>
+
     <div class="admin-list" id="admin-list">
       ${renderAdminTable(books)}
     </div>`;
@@ -1185,6 +1206,58 @@ async function renderAdmin() {
   const bulkTagsInput = document.getElementById("bulk-tags");
   bulkTagsInput.addEventListener("input",  () => showTagAutocomplete(bulkTagsInput, allTags));
   bulkTagsInput.addEventListener("focus",  () => showTagAutocomplete(bulkTagsInput, allTags));
+
+  // ── Tag Tools ─────────────────────────────────────────────────────
+  document.getElementById("tag-apply").addEventListener("click", async () => {
+    const oldTag = document.getElementById("tag-old").value.trim();
+    const newTag = document.getElementById("tag-new").value.trim();
+    const btn    = document.getElementById("tag-apply");
+    const status = document.getElementById("tag-status");
+    if (!oldTag) {
+      status.textContent = "Enter a tag to remove or rename";
+      status.className = "admin-status admin-status-err";
+      return;
+    }
+    btn.disabled = true;
+    status.textContent = "Working…";
+    status.className = "admin-status";
+    try {
+      const res = await api("/api/admin/tags/rename", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ old_tag: oldTag, new_tag: newTag || null }),
+      });
+      // Update local books array
+      for (const b of books) {
+        if (!b.tags) continue;
+        if (newTag) {
+          b.tags = [...new Set(b.tags.map(t => t === oldTag ? newTag : t))];
+        } else {
+          b.tags = b.tags.filter(t => t !== oldTag);
+        }
+      }
+      // Update allTags
+      const tagIdx = allTags.indexOf(oldTag);
+      if (tagIdx !== -1) allTags.splice(tagIdx, 1);
+      if (newTag && !allTags.includes(newTag)) allTags.push(newTag);
+      // Refresh datalist
+      document.getElementById("dl-admin-tags").innerHTML = allTags.map(t => `<option value="${esc(t)}">`).join("");
+      metaCache = { authors: null, series: null, tags: null };
+      document.getElementById("admin-list").innerHTML = renderAdminTable(getFiltered());
+      wireAdminRows();
+      document.getElementById("tag-old").value = "";
+      document.getElementById("tag-new").value = "";
+      const verb = newTag ? `renamed to "${newTag}"` : "removed";
+      status.textContent = `"${oldTag}" ${verb} in ${res.updated} book${res.updated !== 1 ? "s" : ""}`;
+      status.className = "admin-status admin-status-ok";
+    } catch {
+      status.textContent = "Error";
+      status.className = "admin-status admin-status-err";
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => { status.textContent = ""; }, 4000);
+    }
+  });
 
   // ── Missing-metadata filter chips ─────────────────────────────────
   function refreshAdminList() {

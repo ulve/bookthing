@@ -62,6 +62,32 @@ def bulk_update_books(book_ids: list[str], fields: dict, tags_mode: str = "repla
     return count
 
 
+def rename_tag(old_tag: str, new_tag: str | None) -> int:
+    """Remove or rename a tag across all books. If new_tag is None/empty, removes old_tag."""
+    with _metadata_lock:
+        data = load_metadata()
+        count = 0
+        for book in data.get("books", {}).values():
+            tags = book.get("tags") or []
+            if old_tag not in tags:
+                continue
+            if new_tag:
+                seen: set[str] = set()
+                result: list[str] = []
+                for t in tags:
+                    merged = new_tag if t == old_tag else t
+                    if merged not in seen:
+                        seen.add(merged)
+                        result.append(merged)
+                book["tags"] = result
+            else:
+                book["tags"] = [t for t in tags if t != old_tag]
+            count += 1
+        if count:
+            save_metadata(data)
+    return count
+
+
 def delete_book(book_id: str) -> bool:
     """Permanently remove a book entry from metadata.json."""
     with _metadata_lock:

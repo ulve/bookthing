@@ -698,6 +698,17 @@ async def admin_bulk_update(request: Request, _session=Depends(require_admin)):
     return {"ok": True, "updated": count}
 
 
+@app.post("/api/admin/tags/rename")
+async def admin_rename_tag(request: Request, _session=Depends(require_admin)):
+    body = await request.json()
+    old_tag = (body.get("old_tag") or "").strip()
+    new_tag = (body.get("new_tag") or "").strip() or None
+    if not old_tag:
+        raise HTTPException(status_code=400, detail="old_tag is required")
+    count = books_module.rename_tag(old_tag, new_tag)
+    return {"ok": True, "updated": count}
+
+
 @app.delete("/api/admin/books/{book_id}")
 def admin_delete_book(book_id: str, _session=Depends(require_admin)):
     ok = books_module.delete_book(book_id)
