@@ -128,14 +128,21 @@ def get_book_list(search: str = None, author: str = None, series: str = None, ta
             if any(t in [x.lower() for x in (b.get("tags") or [])] for t in tag_list)
         ]
 
-    # Sort: author, series+number, title
-    def sort_key(b):
-        return (
-            b.get("author") or "",
-            b.get("series") or "",
-            b.get("number_in_series") or 0,
-            b.get("title") or "",
-        )
+    # When filtering by series, sort by number in series; otherwise by author, series+number, title
+    if series:
+        def sort_key(b):
+            return (
+                b.get("number_in_series") or 0,
+                b.get("title") or "",
+            )
+    else:
+        def sort_key(b):
+            return (
+                b.get("author") or "",
+                b.get("series") or "",
+                b.get("number_in_series") or 0,
+                b.get("title") or "",
+            )
 
     books.sort(key=sort_key)
     return [_book_summary(b) for b in books]
