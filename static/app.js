@@ -129,11 +129,11 @@ function fmtDuration(secs) {
 }
 
 function fmtLogEntry(s, totalSeconds) {
-  const date = new Date(s.started_at * 1000)
-    .toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  const d = new Date(s.started_at * 1000);
+  const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
   const h = Math.floor(s.duration_seconds / 3600);
   const m = Math.floor((s.duration_seconds % 3600) / 60);
-  const dur = h > 0 ? `${h}:${String(m).padStart(2, "0")}` : `0:${String(m).padStart(2, "0")}`;
+  const dur = h > 0 ? `${h} h ${m} m` : `${m} m`;
   const pct = totalSeconds > 0 ? ` (${Math.round((s.duration_seconds / totalSeconds) * 100)}%)` : "";
   return `<div class="log-entry"><span class="log-date">${esc(date)}</span><span class="log-dur">${esc(dur + pct)}</span></div>`;
 }
@@ -441,6 +441,8 @@ async function renderBookDetail(bookId) {
     ]);
   } catch (_) { return; }
   clientLog("info", "book detail", { book_id: bookId, title: book.title });
+  clientLog("debug", "listening sessions", { book_id: bookId, count: listeningLog?.length ?? 0, sessions: listeningLog });
+  console.debug("[bookthing] listening sessions", listeningLog);
 
   const seriesLine = book.series
     ? `<div class="series detail-series-link" data-series="${esc(book.series)}">${esc(book.series)}${book.number_in_series != null ? ` #${book.number_in_series}` : ""}</div>`

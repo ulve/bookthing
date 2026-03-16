@@ -388,8 +388,8 @@ async def save_position(book_id: str, request: Request, session=Depends(require_
             (user_id, book_id, file_index, time_seconds, now),
         )
         db.execute(
-            "INSERT INTO listening_heartbeats (user_id, book_id, at) VALUES (?, ?, ?)",
-            (user_id, book_id, now),
+            "INSERT INTO listening_heartbeats (user_id, book_id, at, pos_seconds) VALUES (?, ?, ?, ?)",
+            (user_id, book_id, now, time_seconds),
         )
     return {"ok": True}
 
@@ -414,29 +414,37 @@ def get_listening_sessions(book_id: str, session=Depends(require_auth)):
         return []
     with get_db() as db:
         rows = db.execute(
-            "SELECT at FROM listening_heartbeats WHERE user_id = ? AND book_id = ? ORDER BY at",
+            "SELECT at, pos_seconds FROM listening_heartbeats WHERE user_id = ? AND book_id = ? ORDER BY at",
             (user_id, book_id),
         ).fetchall()
     if not rows:
         return []
 
-    GAP = 15  # seconds — gap larger than this starts a new session
-    HEARTBEAT_CREDIT = 5  # credit for the last heartbeat in a session
+    GAP = 300  # seconds wall-clock — gap larger than this starts a new session
+    HEARTBEAT_CREDIT = 5  # audio-seconds credit for the last heartbeat in a session
 
     sessions = []
     seg_start = rows[0]["at"]
-    prev = rows[0]["at"]
+    prev_at = rows[0]["at"]
+    prev_pos = rows[0]["pos_seconds"]
+    seg_duration = 0.0
     for row in rows[1:]:
-        if row["at"] - prev > GAP:
-            duration = prev - seg_start + HEARTBEAT_CREDIT
-            if duration >= 30:
-                sessions.append({"started_at": seg_start, "duration_seconds": duration})
+        if row["at"] - prev_at > GAP:
+            seg_duration += HEARTBEAT_CREDIT
+            if seg_duration >= 30:
+                sessions.append({"started_at": seg_start, "duration_seconds": int(seg_duration)})
             seg_start = row["at"]
-        prev = row["at"]
+            seg_duration = 0.0
+        else:
+            delta = row["pos_seconds"] - prev_pos
+            if delta > 0:
+                seg_duration += delta
+        prev_at = row["at"]
+        prev_pos = row["pos_seconds"]
     # close final session
-    duration = prev - seg_start + HEARTBEAT_CREDIT
-    if duration >= 30:
-        sessions.append({"started_at": seg_start, "duration_seconds": duration})
+    seg_duration += HEARTBEAT_CREDIT
+    if seg_duration >= 30:
+        sessions.append({"started_at": seg_start, "duration_seconds": int(seg_duration)})
 
     sessions.sort(key=lambda s: s["started_at"], reverse=True)
     return sessions[-100:]
