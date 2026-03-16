@@ -397,6 +397,11 @@ async function refreshLibraryView(session) {
 
   document.getElementById("clear-filters").addEventListener("click", () => {
     filterState = { search: "", author: "", series: "", tags: [], status: "" };
+    document.getElementById("search-input").value = "";
+    document.getElementById("author-select").value = "";
+    document.getElementById("series-select").value = "";
+    document.querySelectorAll(".filter-tag-chip").forEach(c => c.classList.remove("active"));
+    document.querySelectorAll(".status-chip").forEach(c => c.classList.toggle("active", c.dataset.status === ""));
     refreshLibraryView(session);
   });
 
