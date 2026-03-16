@@ -541,6 +541,8 @@ input:focus, select:focus {
   gap: 0.75rem;
 }
 
+.detail-edit-panel[hidden] { display: none; }
+
 .detail-edit-row {
   display: flex;
   align-items: center;
