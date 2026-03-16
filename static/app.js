@@ -345,10 +345,6 @@ async function refreshLibraryView(session) {
           </select>
         </div>
         <div class="filter-group">
-          <label>Tags</label>
-          <div class="filter-tag-chips" id="filter-tag-chips">${tagChipsFilter}</div>
-        </div>
-        <div class="filter-group">
           <label>Status</label>
           <div class="filter-status-chips">
             <span class="status-chip${filterState.status === "" ? " active" : ""}" data-status="">All</span>
@@ -356,6 +352,10 @@ async function refreshLibraryView(session) {
             <span class="status-chip${filterState.status === "unlistened" ? " active" : ""}" data-status="unlistened">Unlistened</span>
             <span class="status-chip${filterState.status === "completed" ? " active" : ""}" data-status="completed">Completed</span>
           </div>
+        </div>
+        <div class="filter-group">
+          <label>Tags</label>
+          <div class="filter-tag-chips" id="filter-tag-chips">${tagChipsFilter}</div>
         </div>
         <button class="btn btn-clear" id="clear-filters">Clear filters</button>
       </aside>
