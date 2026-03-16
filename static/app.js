@@ -128,14 +128,18 @@ function fmtDuration(secs) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function fmtLogEntry(s, totalSeconds) {
+function fmtLogEntry(s, book) {
   const d = new Date(s.started_at * 1000);
   const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
   const h = Math.floor(s.duration_seconds / 3600);
   const m = Math.floor((s.duration_seconds % 3600) / 60);
   const dur = h > 0 ? `${h} h ${m} m` : `${m} m`;
-  const pct = totalSeconds > 0 ? ` (${Math.round((s.duration_seconds / totalSeconds) * 100)}%)` : "";
-  return `<div class="log-entry"><span class="log-date">${esc(date)}</span><span class="log-dur">${esc(dur + pct)}</span></div>`;
+  const durs = book.file_durations || [];
+  const offset = durs.slice(0, s.max_file_index ?? 0).reduce((a, b) => a + b, 0);
+  const absPos = offset + (s.max_pos_seconds ?? 0);
+  const pct = book.total_seconds > 0 ? ` (${Math.round((absPos / book.total_seconds) * 100)}%)` : "";
+  const pos = absPos > 0 ? ` → ${fmtDuration(absPos)}${pct}` : "";
+  return `<div class="log-entry"><span class="log-date">${esc(date)}</span><span class="log-dur">${esc(dur + pos)}</span></div>`;
 }
 
 function timeAgo(unixSecs) {
@@ -510,7 +514,7 @@ async function renderBookDetail(bookId) {
   }
 
   const listeningLogHtml = listeningLog?.length
-    ? `<div class="listening-log-section"><h3>Listening log</h3><div class="listening-log">${listeningLog.map(s => fmtLogEntry(s, book.total_seconds)).join("")}</div></div>`
+    ? `<div class="listening-log-section"><h3>Listening log</h3><div class="listening-log">${listeningLog.map(s => fmtLogEntry(s, book)).join("")}</div></div>`
     : "";
 
   app.innerHTML = `
@@ -758,8 +762,12 @@ async function renderAdmin() {
               const pos = a.time_seconds > 0
                 ? `Track ${a.file_index + 1}, ${fmt(a.time_seconds)}`
                 : `Track ${a.file_index + 1}`;
+              const nowSecs = Math.floor(Date.now() / 1000);
+              const playing = a.playing_since != null
+                ? ` <span class="act-playing">▶ ${fmtDuration(nowSecs - a.playing_since)}</span>`
+                : "";
               return `<tr>
-                <td class="act-label">${esc(a.email || "—")}</td>
+                <td class="act-label">${esc(a.email || "—")}${playing}</td>
                 <td class="act-book"><span class="act-book-link" data-id="${a.book_id}">${esc(a.book_title)}</span></td>
                 <td class="act-pos">${pos}</td>
                 <td class="act-when">${ago}</td>

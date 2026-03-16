@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS listening_heartbeats (
     user_id TEXT NOT NULL,
     book_id TEXT NOT NULL,
     at INTEGER NOT NULL,
-    pos_seconds REAL NOT NULL DEFAULT 0
+    pos_seconds REAL NOT NULL DEFAULT 0,
+    file_index INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_listening_heartbeats_user_book
     ON listening_heartbeats (user_id, book_id, at);
@@ -68,6 +69,7 @@ MIGRATIONS = [
     "ALTER TABLE positions ADD COLUMN user_id TEXT",
     "ALTER TABLE users ADD COLUMN debug_logging INTEGER DEFAULT 0",
     "ALTER TABLE listening_heartbeats ADD COLUMN pos_seconds REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE listening_heartbeats ADD COLUMN file_index INTEGER NOT NULL DEFAULT 0",
 ]
 
 

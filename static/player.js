@@ -175,6 +175,11 @@ function loadTrack(index, seekTo = 0, autoplay = true) {
 
 function savePosition() {
   if (!state.book) return;
+  window.clientLog?.("debug", "save position", {
+    book_id: state.book.book_id,
+    file_index: state.trackIndex,
+    time_seconds: audio.currentTime,
+  });
   fetch(`/api/position/${state.book.book_id}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -186,8 +191,11 @@ function savePosition() {
 }
 
 function schedulePositionSave() {
-  if (state.saveTimer) clearTimeout(state.saveTimer);
-  state.saveTimer = setTimeout(savePosition, 5000);
+  if (state.saveTimer) return;
+  state.saveTimer = setTimeout(() => {
+    state.saveTimer = null;
+    savePosition();
+  }, 5000);
 }
 
 // ── Event wiring ──────────────────────────────────────────────────

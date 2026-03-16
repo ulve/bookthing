@@ -1381,6 +1381,7 @@ input:focus, select:focus {
 .act-book-link:hover { text-decoration: underline; }
 .act-pos { color: var(--text-muted); }
 .act-when { color: var(--text-muted); font-size: 0.75rem; }
+.act-playing { color: var(--accent); font-size: 0.75rem; margin-left: 0.4rem; }
 .emails-add-row {
   display: flex;
   align-items: center;

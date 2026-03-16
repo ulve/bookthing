@@ -388,8 +388,8 @@ async def save_position(book_id: str, request: Request, session=Depends(require_
             (user_id, book_id, file_index, time_seconds, now),
         )
         db.execute(
-            "INSERT INTO listening_heartbeats (user_id, book_id, at, pos_seconds) VALUES (?, ?, ?, ?)",
-            (user_id, book_id, now, time_seconds),
+            "INSERT INTO listening_heartbeats (user_id, book_id, at, pos_seconds, file_index) VALUES (?, ?, ?, ?, ?)",
+            (user_id, book_id, now, time_seconds, file_index),
         )
     return {"ok": True}
 
@@ -414,7 +414,7 @@ def get_listening_sessions(book_id: str, session=Depends(require_auth)):
         return []
     with get_db() as db:
         rows = db.execute(
-            "SELECT at, pos_seconds FROM listening_heartbeats WHERE user_id = ? AND book_id = ? ORDER BY at",
+            "SELECT at, pos_seconds, file_index FROM listening_heartbeats WHERE user_id = ? AND book_id = ? ORDER BY at",
             (user_id, book_id),
         ).fetchall()
     if not rows:
@@ -427,24 +427,44 @@ def get_listening_sessions(book_id: str, session=Depends(require_auth)):
     seg_start = rows[0]["at"]
     prev_at = rows[0]["at"]
     prev_pos = rows[0]["pos_seconds"]
+    prev_file = rows[0]["file_index"]
     seg_duration = 0.0
+    seg_max_pos = rows[0]["pos_seconds"]
+    seg_max_file = rows[0]["file_index"]
     for row in rows[1:]:
-        if row["at"] - prev_at > GAP:
+        wall_clock_gap = row["at"] - prev_at
+        if wall_clock_gap > GAP:
+            # If audio advanced more than half the gap, heartbeats were throttled but audio kept playing
+            if row["file_index"] == prev_file:
+                delta = row["pos_seconds"] - prev_pos
+                if delta > 0 and delta > wall_clock_gap * 0.5:
+                    seg_duration += delta
+                    if (row["file_index"], row["pos_seconds"]) > (seg_max_file, seg_max_pos):
+                        seg_max_file, seg_max_pos = row["file_index"], row["pos_seconds"]
             seg_duration += HEARTBEAT_CREDIT
             if seg_duration >= 30:
-                sessions.append({"started_at": seg_start, "duration_seconds": int(seg_duration)})
+                sessions.append({"started_at": seg_start, "duration_seconds": int(seg_duration), "max_file_index": seg_max_file, "max_pos_seconds": seg_max_pos})
             seg_start = row["at"]
             seg_duration = 0.0
+            seg_max_pos = row["pos_seconds"]
+            seg_max_file = row["file_index"]
+        elif row["file_index"] != prev_file:
+            # file boundary — position reset, don't compute cross-file delta
+            if (row["file_index"], row["pos_seconds"]) > (seg_max_file, seg_max_pos):
+                seg_max_file, seg_max_pos = row["file_index"], row["pos_seconds"]
         else:
             delta = row["pos_seconds"] - prev_pos
             if delta > 0:
                 seg_duration += delta
+                if row["pos_seconds"] > seg_max_pos or row["file_index"] > seg_max_file:
+                    seg_max_file, seg_max_pos = row["file_index"], row["pos_seconds"]
         prev_at = row["at"]
         prev_pos = row["pos_seconds"]
+        prev_file = row["file_index"]
     # close final session
     seg_duration += HEARTBEAT_CREDIT
     if seg_duration >= 30:
-        sessions.append({"started_at": seg_start, "duration_seconds": int(seg_duration)})
+        sessions.append({"started_at": seg_start, "duration_seconds": int(seg_duration), "max_file_index": seg_max_file, "max_pos_seconds": seg_max_pos})
 
     sessions.sort(key=lambda s: s["started_at"], reverse=True)
     return sessions[-100:]
@@ -486,14 +506,35 @@ async def admin_rescan_book(book_id: str, _session=Depends(require_admin)):
 
 @app.get("/api/admin/activity")
 def admin_activity(_session=Depends(require_admin)):
+    now = int(time.time())
+    PLAYING_THRESHOLD = 30  # seconds — heartbeats fire every 5s
+    GAP = 300
     with get_db() as db:
         rows = db.execute(
-            """SELECT u.email, p.book_id, p.file_index, p.time_seconds, p.updated_at
+            """SELECT u.email, u.user_id, p.book_id, p.file_index, p.time_seconds, p.updated_at
                FROM positions p
                JOIN users u ON p.user_id = u.user_id
                ORDER BY p.updated_at DESC
                LIMIT 200""",
         ).fetchall()
+        # Find session start for currently playing users
+        playing = {}
+        for r in rows:
+            if now - r["updated_at"] > PLAYING_THRESHOLD:
+                continue
+            beats = db.execute(
+                "SELECT at FROM listening_heartbeats WHERE user_id = ? AND book_id = ? ORDER BY at DESC LIMIT 500",
+                (r["user_id"], r["book_id"]),
+            ).fetchall()
+            session_start = beats[0]["at"] if beats else r["updated_at"]
+            prev = session_start
+            for b in beats[1:]:
+                if prev - b["at"] > GAP:
+                    break
+                session_start = b["at"]
+                prev = b["at"]
+            playing[r["user_id"]] = session_start
+
     data = books_module.load_metadata()
     book_map = {b["book_id"]: b.get("title") or b.get("path", b["book_id"])
                 for b in data.get("books", {}).values()}
@@ -505,6 +546,7 @@ def admin_activity(_session=Depends(require_admin)):
             "file_index": r["file_index"],
             "time_seconds": r["time_seconds"],
             "updated_at": r["updated_at"],
+            "playing_since": playing.get(r["user_id"]),
         }
         for r in rows
     ]
