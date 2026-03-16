@@ -533,7 +533,7 @@ def admin_activity(_session=Depends(require_admin)):
                     break
                 session_start = b["at"]
                 prev = b["at"]
-            playing[r["user_id"]] = session_start
+            playing[(r["user_id"], r["book_id"])] = session_start
 
     data = books_module.load_metadata()
     book_map = {b["book_id"]: b.get("title") or b.get("path", b["book_id"])
@@ -546,7 +546,7 @@ def admin_activity(_session=Depends(require_admin)):
             "file_index": r["file_index"],
             "time_seconds": r["time_seconds"],
             "updated_at": r["updated_at"],
-            "playing_since": playing.get(r["user_id"]),
+            "playing_since": playing.get((r["user_id"], r["book_id"])),
         }
         for r in rows
     ]
