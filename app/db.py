@@ -46,6 +46,15 @@ CREATE TABLE IF NOT EXISTS allowed_emails (
     is_admin INTEGER DEFAULT 0,
     added_at INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS listening_heartbeats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    book_id TEXT NOT NULL,
+    at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_listening_heartbeats_user_book
+    ON listening_heartbeats (user_id, book_id, at);
 """
 
 

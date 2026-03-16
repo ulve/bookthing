@@ -387,6 +387,10 @@ async def save_position(book_id: str, request: Request, session=Depends(require_
             "VALUES (?, ?, ?, ?, ?)",
             (user_id, book_id, file_index, time_seconds, now),
         )
+        db.execute(
+            "INSERT INTO listening_heartbeats (user_id, book_id, at) VALUES (?, ?, ?)",
+            (user_id, book_id, now),
+        )
     return {"ok": True}
 
 
@@ -401,6 +405,41 @@ def get_all_positions(session=Depends(require_auth)):
             (user_id,),
         ).fetchall()
     return {r["book_id"]: {"file_index": r["file_index"], "time_seconds": r["time_seconds"]} for r in rows}
+
+
+@app.get("/api/listening-sessions/{book_id}")
+def get_listening_sessions(book_id: str, session=Depends(require_auth)):
+    user_id = session.get("user_id")
+    if not user_id:
+        return []
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT at FROM listening_heartbeats WHERE user_id = ? AND book_id = ? ORDER BY at",
+            (user_id, book_id),
+        ).fetchall()
+    if not rows:
+        return []
+
+    GAP = 15  # seconds — gap larger than this starts a new session
+    HEARTBEAT_CREDIT = 5  # credit for the last heartbeat in a session
+
+    sessions = []
+    seg_start = rows[0]["at"]
+    prev = rows[0]["at"]
+    for row in rows[1:]:
+        if row["at"] - prev > GAP:
+            duration = prev - seg_start + HEARTBEAT_CREDIT
+            if duration >= 30:
+                sessions.append({"started_at": seg_start, "duration_seconds": duration})
+            seg_start = row["at"]
+        prev = row["at"]
+    # close final session
+    duration = prev - seg_start + HEARTBEAT_CREDIT
+    if duration >= 30:
+        sessions.append({"started_at": seg_start, "duration_seconds": duration})
+
+    sessions.sort(key=lambda s: s["started_at"], reverse=True)
+    return sessions[-100:]
 
 
 # ---------------------------------------------------------------------------

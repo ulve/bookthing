@@ -128,6 +128,16 @@ function fmtDuration(secs) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function fmtLogEntry(s, totalSeconds) {
+  const date = new Date(s.started_at * 1000)
+    .toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  const h = Math.floor(s.duration_seconds / 3600);
+  const m = Math.floor((s.duration_seconds % 3600) / 60);
+  const dur = h > 0 ? `${h}:${String(m).padStart(2, "0")}` : `0:${String(m).padStart(2, "0")}`;
+  const pct = totalSeconds > 0 ? ` (${Math.round((s.duration_seconds / totalSeconds) * 100)}%)` : "";
+  return `<div class="log-entry"><span class="log-date">${esc(date)}</span><span class="log-dur">${esc(dur + pct)}</span></div>`;
+}
+
 function timeAgo(unixSecs) {
   const diff = Math.floor(Date.now() / 1000) - unixSecs;
   if (diff < 60) return "just now";
@@ -421,12 +431,13 @@ async function refreshLibraryView(session) {
 
 async function renderBookDetail(bookId) {
   app.innerHTML = `<div class="centered-msg"><span>Loading...</span></div>`;
-  let book, session, pos;
+  let book, session, pos, listeningLog;
   try {
-    [book, session, pos] = await Promise.all([
+    [book, session, pos, listeningLog] = await Promise.all([
       api(`/api/books/${bookId}`),
       getSession(),
       api(`/api/position/${bookId}`).catch(() => null),
+      api(`/api/listening-sessions/${bookId}`).catch(() => []),
     ]);
   } catch (_) { return; }
   clientLog("info", "book detail", { book_id: bookId, title: book.title });
@@ -496,6 +507,10 @@ async function renderBookDetail(bookId) {
     }
   }
 
+  const listeningLogHtml = listeningLog?.length
+    ? `<div class="listening-log-section"><h3>Listening log</h3><div class="listening-log">${listeningLog.map(s => fmtLogEntry(s, book.total_seconds)).join("")}</div></div>`
+    : "";
+
   app.innerHTML = `
     <div class="site-header">
       <div class="site-brand" id="nav-home">
@@ -524,6 +539,7 @@ async function renderBookDetail(bookId) {
       ${descHtml}
       ${linksHtml}
       ${trackSection}
+      ${listeningLogHtml}
     </div>`;
 
   document.getElementById("nav-home").addEventListener("click", () => navigate("/"));

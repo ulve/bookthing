@@ -612,6 +612,26 @@ input:focus, select:focus {
   font-size: 0.75rem;
 }
 
+/* ============================================================
+   Listening log
+   ============================================================ */
+.listening-log-section { margin-top: 1.5rem; }
+.listening-log-section h3 {
+  font-size: 0.8rem; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 0.5rem;
+}
+.listening-log {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  max-height: 240px; overflow-y: auto;
+}
+.log-entry {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.85rem;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-date { color: var(--text); }
+.log-dur  { color: var(--text-muted); }
+
 .track-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ============================================================
