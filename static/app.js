@@ -279,7 +279,7 @@ async function refreshLibraryView(session) {
   } catch (_) { return; }
 
   if (filterState.status === "listening") {
-    books = books.filter(b => calcPct(positions[b.book_id], b) > 0);
+    books = books.filter(b => { const p = calcPct(positions[b.book_id], b); return p > 0 && p < 99; });
   } else if (filterState.status === "unlistened") {
     books = books.filter(b => !positions[b.book_id] || calcPct(positions[b.book_id], b) === 0);
   }
