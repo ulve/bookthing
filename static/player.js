@@ -19,6 +19,7 @@ let state = {
   trackIndex: 0,
   isScrubbing: false,
   saveTimer: null,
+  timeMode: 1,      // 0=part left, 1=book left, 2=percent
 };
 
 export function fmt(secs) {
@@ -35,14 +36,32 @@ function updatePlayBtn() {
   btnPlay.innerHTML = audio.paused ? "&#9654;" : "&#9646;&#9646;";
 }
 
+function bookProgressInfo() {
+  const durs = state.book?.file_durations || [];
+  const bookTotal = durs.reduce((a, v) => a + v, 0);
+  const elapsed = durs.slice(0, state.trackIndex).reduce((a, v) => a + v, 0) + (audio.currentTime || 0);
+  return { bookTotal, elapsed };
+}
+
 function updateProgress() {
   if (state.isScrubbing) return;
   const dur = audio.duration;
   const cur = audio.currentTime;
   timeCurrent.textContent = fmt(cur);
-  timeTotal.textContent = fmt(dur);
-  if (dur > 0) {
-    scrubber.value = (cur / dur) * 100;
+  if (dur > 0) scrubber.value = (cur / dur) * 100;
+
+  const { bookTotal, elapsed } = bookProgressInfo();
+
+  if (state.timeMode === 1 && bookTotal > 0) {
+    const remaining = Math.max(0, bookTotal - elapsed);
+    timeTotal.textContent = `-${fmt(remaining)}`;
+  } else if (state.timeMode === 2 && bookTotal > 0) {
+    const pct = Math.min(100, Math.round((elapsed / bookTotal) * 100));
+    timeTotal.textContent = `${pct}%`;
+  } else if (isFinite(dur) && dur > 0) {
+    timeTotal.textContent = `-${fmt(dur - cur)}`;
+  } else {
+    timeTotal.textContent = fmt(dur);
   }
 }
 
@@ -185,6 +204,20 @@ scrubber.addEventListener("input", () => {
   if (dur > 0) {
     const t = (parseFloat(scrubber.value) / 100) * dur;
     timeCurrent.textContent = fmt(t);
+    const { bookTotal } = bookProgressInfo();
+    if (state.timeMode === 1 && bookTotal > 0) {
+      const durs = state.book?.file_durations || [];
+      const baseElapsed = durs.slice(0, state.trackIndex).reduce((a, v) => a + v, 0);
+      const remaining = Math.max(0, bookTotal - baseElapsed - t);
+      timeTotal.textContent = `-${fmt(remaining)}`;
+    } else if (state.timeMode === 2 && bookTotal > 0) {
+      const durs = state.book?.file_durations || [];
+      const baseElapsed = durs.slice(0, state.trackIndex).reduce((a, v) => a + v, 0);
+      const pct = Math.min(100, Math.round(((baseElapsed + t) / bookTotal) * 100));
+      timeTotal.textContent = `${pct}%`;
+    } else {
+      timeTotal.textContent = `-${fmt(dur - t)}`;
+    }
   }
 });
 scrubber.addEventListener("change", () => {
@@ -199,6 +232,13 @@ scrubber.addEventListener("change", () => {
 speedSelect.addEventListener("change", () => {
   audio.playbackRate = parseFloat(speedSelect.value);
 });
+
+timeTotal.addEventListener("click", () => {
+  state.timeMode = (state.timeMode + 1) % 3;
+  updateProgress();
+});
+
+timeTotal.title = "Click to cycle: part left / book left / percent";
 
 // ── Public API ─────────────────────────────────────────────────────
 

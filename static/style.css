@@ -265,6 +265,57 @@ input:focus, select:focus {
   transition: width 0.3s;
 }
 
+.book-cover-container {
+  position: relative;
+}
+
+.book-done-check {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  background: var(--accent);
+  color: #1a1a1a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.filter-status-chips {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.status-chip {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--text-muted);
+  user-select: none;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.status-chip:hover {
+  border-color: var(--accent-dim);
+  color: var(--text);
+}
+
+.status-chip.active {
+  background: rgba(201,168,76,0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .book-cover-wrap {
   aspect-ratio: 1 / 1;
   overflow: hidden;
@@ -447,7 +498,33 @@ input:focus, select:focus {
 .detail-duration {
   font-size: 0.8rem;
   color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.detail-progress-line {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   margin-bottom: 0.75rem;
+}
+
+.detail-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.detail-progress-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.detail-progress-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .detail-actions {
@@ -631,8 +708,17 @@ input:focus, select:focus {
   font-size: 0.75rem;
   color: var(--text-muted);
   flex-shrink: 0;
-  width: 3rem;
+  min-width: 3.5rem;
   text-align: center;
+}
+
+#time-total {
+  cursor: pointer;
+  user-select: none;
+}
+
+#time-total:hover {
+  color: var(--accent);
 }
 
 .scrubber {

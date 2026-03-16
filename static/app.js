@@ -75,7 +75,7 @@ function route() {
 
 // ── Library state ──────────────────────────────────────────────────
 
-let filterState = { search: "", author: "", series: "", tags: [] };
+let filterState = { search: "", author: "", series: "", tags: [], status: "" };
 let metaCache = { authors: null, series: null, tags: null };
 let savedLibraryScroll = 0;
 
@@ -221,27 +221,35 @@ async function renderLibrary() {
   await refreshLibraryView(session);
 }
 
+function calcPct(pos, book) {
+  if (!pos) return 0;
+  const durs = book.file_durations || [];
+  const total = durs.reduce((a, v) => a + v, 0);
+  if (total > 0) {
+    const elapsed = durs.slice(0, pos.file_index).reduce((a, v) => a + v, 0) + pos.time_seconds;
+    return Math.min(100, Math.max(1, Math.round((elapsed / total) * 100)));
+  } else if (book.file_count > 0) {
+    return Math.max(1, Math.round(((pos.file_index + 0.5) / book.file_count) * 100));
+  }
+  return 0;
+}
+
 function buildBookCards(books, positions) {
   return books.length
     ? books.map(b => {
         const pos = positions[b.book_id];
-        let pct = 0;
-        if (pos) {
-          const durs = b.file_durations || [];
-          const total = durs.reduce((a, v) => a + v, 0);
-          if (total > 0) {
-            const elapsed = durs.slice(0, pos.file_index).reduce((a, v) => a + v, 0) + pos.time_seconds;
-            pct = Math.min(100, Math.max(1, Math.round((elapsed / total) * 100)));
-          } else if (b.file_count > 0) {
-            pct = Math.max(1, Math.round(((pos.file_index + 0.5) / b.file_count) * 100));
-          }
-        }
+        const pct = calcPct(pos, b);
+        const done = pct >= 99;
         const progressBar = pos
           ? `<div class="book-progress"><div class="book-progress-fill" style="width:${pct}%"></div></div>`
           : "";
+        const doneCheck = done ? `<div class="book-done-check" title="Finished">✓</div>` : "";
         return `
         <div class="book-card" data-id="${b.book_id}">
-          ${coverHtml(b)}
+          <div class="book-cover-container">
+            ${coverHtml(b)}
+            ${doneCheck}
+          </div>
           <div class="book-info">
             <div class="book-title">${esc(b.title || "Untitled")}</div>
             <div class="book-author">${esc(b.author || "")}</div>
@@ -269,6 +277,12 @@ async function refreshLibraryView(session) {
       api("/api/positions").catch(() => ({})),
     ]);
   } catch (_) { return; }
+
+  if (filterState.status === "listening") {
+    books = books.filter(b => calcPct(positions[b.book_id], b) > 0);
+  } else if (filterState.status === "unlistened") {
+    books = books.filter(b => !positions[b.book_id] || calcPct(positions[b.book_id], b) === 0);
+  }
 
   // If the layout is already mounted, only update the book grid to preserve focus
   const grid = document.getElementById("book-grid");
@@ -318,6 +332,14 @@ async function refreshLibraryView(session) {
           <label>Tags</label>
           <div class="filter-tag-chips" id="filter-tag-chips">${tagChipsFilter}</div>
         </div>
+        <div class="filter-group">
+          <label>Status</label>
+          <div class="filter-status-chips">
+            <span class="status-chip${filterState.status === "" ? " active" : ""}" data-status="">All</span>
+            <span class="status-chip${filterState.status === "listening" ? " active" : ""}" data-status="listening">Listening</span>
+            <span class="status-chip${filterState.status === "unlistened" ? " active" : ""}" data-status="unlistened">Unlistened</span>
+          </div>
+        </div>
         <button class="btn btn-clear" id="clear-filters">Clear filters</button>
       </aside>
       <div class="book-grid" id="book-grid">${buildBookCards(books, positions)}</div>
@@ -365,8 +387,16 @@ async function refreshLibraryView(session) {
     refreshLibraryView(session);
   });
 
+  document.querySelector(".filter-status-chips").addEventListener("click", e => {
+    const chip = e.target.closest(".status-chip");
+    if (!chip) return;
+    filterState.status = chip.dataset.status;
+    document.querySelectorAll(".status-chip").forEach(c => c.classList.toggle("active", c.dataset.status === filterState.status));
+    refreshLibraryView(session);
+  });
+
   document.getElementById("clear-filters").addEventListener("click", () => {
-    filterState = { search: "", author: "", series: "", tags: [] };
+    filterState = { search: "", author: "", series: "", tags: [], status: "" };
     refreshLibraryView(session);
   });
 
@@ -383,9 +413,13 @@ async function refreshLibraryView(session) {
 
 async function renderBookDetail(bookId) {
   app.innerHTML = `<div class="centered-msg"><span>Loading...</span></div>`;
-  let book, session;
+  let book, session, pos;
   try {
-    [book, session] = await Promise.all([api(`/api/books/${bookId}`), getSession()]);
+    [book, session, pos] = await Promise.all([
+      api(`/api/books/${bookId}`),
+      getSession(),
+      api(`/api/position/${bookId}`).catch(() => null),
+    ]);
   } catch (_) { return; }
   clientLog("info", "book detail", { book_id: bookId, title: book.title });
 
@@ -422,6 +456,19 @@ async function renderBookDetail(bookId) {
     ? `<div class="detail-duration">${fmtDuration(book.total_seconds)}</div>`
     : "";
 
+  let progressLine = "";
+  if (pos && (pos.file_index > 0 || pos.time_seconds > 0)) {
+    const durs = book.file_durations || [];
+    const total = durs.reduce((a, v) => a + v, 0);
+    if (total > 0) {
+      const elapsed = durs.slice(0, pos.file_index).reduce((a, v) => a + v, 0) + pos.time_seconds;
+      const pct = Math.min(100, Math.round((elapsed / total) * 100));
+      const remaining = Math.max(0, total - elapsed);
+      const label = pct >= 99 ? "Complete" : `${pct}% · ${fmtDuration(remaining)} left`;
+      progressLine = `<div class="detail-progress-line"><div class="detail-progress-bar"><div class="detail-progress-fill" style="width:${pct}%"></div></div><span class="detail-progress-label">${label}</span></div>`;
+    }
+  }
+
   app.innerHTML = `
     <div class="site-header">
       <div class="site-brand" id="nav-home">
@@ -439,6 +486,7 @@ async function renderBookDetail(bookId) {
           ${seriesLine}
           ${tagChips(book.tags, true)}
           ${durationLine}
+          ${progressLine}
           <div class="detail-actions">
             <button class="btn btn-accent" id="play-btn">&#9654; Play</button>
             <a class="btn" href="/api/download/${book.book_id}" download>&#8659; Download</a>
