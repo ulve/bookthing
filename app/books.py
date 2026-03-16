@@ -251,6 +251,7 @@ def _book_detail(b: dict) -> dict:
         "file_count": len(files),
         "total_seconds": round(total_seconds),
         "file_durations": durations,
+        "chapters": b.get("chapters") or [],
         "files": [
             {"index": i, "name": Path(f).name}
             for i, f in enumerate(files)

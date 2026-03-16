@@ -586,6 +586,7 @@ input:focus, select:focus {
   overflow-y: auto;
 }
 
+.chapter-item,
 .track-item {
   display: flex;
   align-items: center;
@@ -596,8 +597,11 @@ input:focus, select:focus {
   transition: background 0.1s;
   font-size: 0.85rem;
 }
+.chapter-item:last-child,
 .track-item:last-child { border-bottom: none; }
+.chapter-item:hover,
 .track-item:hover { background: var(--bg3); }
+.chapter-item.active,
 .track-item.active { background: rgba(201,168,76,0.1); color: var(--accent); }
 
 .track-num {

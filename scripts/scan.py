@@ -263,6 +263,63 @@ def candidate_to_entry(candidate: BookCandidate, root: Path) -> dict:
 USER_EDITABLE_FIELDS = {"title", "author", "series", "number_in_series", "tags", "description", "hidden", "links"}
 
 
+def _read_mp4_chapters(path: Path) -> list[dict]:
+    """Read embedded chapter markers from an M4B/MP4 file."""
+    try:
+        from mutagen.mp4 import MP4
+        audio = MP4(path)
+        chaps = getattr(audio, "chapters", None)
+        if not chaps:
+            return []
+        return [
+            {"title": (ch.title or f"Chapter {i + 1}").strip(), "start": round(ch.start, 2)}
+            for i, ch in enumerate(chaps)
+        ]
+    except Exception:
+        return []
+
+
+def _track_title(path: Path) -> str:
+    """Get a human-readable title for a track from its tags or filename."""
+    try:
+        from mutagen import File as MutagenFile
+        audio = MutagenFile(path, easy=True)
+        if audio:
+            title = audio.get("title")
+            if title:
+                return str(title[0]).strip()
+    except Exception:
+        pass
+    stem = path.stem
+    stem = re.sub(r"^[\d\s._\-]+", "", stem)
+    return stem or path.stem
+
+
+def read_chapters(files_rel: list[str], file_durations: list[float], root: Path) -> list[dict]:
+    """
+    Extract chapter list for the book.
+    Returns list of {title, start} where start is absolute seconds from book start.
+    For a single M4B with embedded chapters, uses those. Otherwise one entry per file.
+    """
+    # Single M4B/M4A: try embedded chapter markers first
+    if len(files_rel) == 1:
+        path = root / files_rel[0]
+        if path.suffix.lower() in (".m4b", ".m4a", ".mp4"):
+            embedded = _read_mp4_chapters(path)
+            if len(embedded) > 1:
+                return embedded
+
+    # Multi-file or single file with no embedded chapters: one chapter per file
+    chapters = []
+    abs_start = 0.0
+    for i, f_rel in enumerate(files_rel):
+        path = root / f_rel
+        title = _track_title(path)
+        chapters.append({"title": title, "start": round(abs_start, 2)})
+        abs_start += file_durations[i] if i < len(file_durations) else 0.0
+    return chapters
+
+
 def read_durations(files_rel: list[str], root: Path) -> list[float]:
     """Read audio duration for each file via mutagen. Returns 0.0 on failure."""
     try:
@@ -335,14 +392,19 @@ def main():
             new_books[book_id] = entry
             print(f"  + New: {entry['path']}")
 
-        # Read durations only when the file list has changed or is missing
+        # Read durations and chapters only when the file list has changed or is missing
         merged = new_books[book_id]
         if merged.get("files") != existing.get("files") or "file_durations" not in existing:
             merged["file_durations"] = read_durations(merged["files"], AUDIOBOOKS_PATH)
+            merged["chapters"] = read_chapters(merged["files"], merged["file_durations"], AUDIOBOOKS_PATH)
             if book_id in existing_books:
                 print(f"  ↺ Re-read durations: {entry['path']}")
         else:
             merged["file_durations"] = existing["file_durations"]
+            if "chapters" not in existing:
+                merged["chapters"] = read_chapters(merged["files"], merged["file_durations"], AUDIOBOOKS_PATH)
+            else:
+                merged["chapters"] = existing["chapters"]
 
     # Mark missing books
     for book_id, book in existing_books.items():
@@ -408,8 +470,13 @@ def rescan_book(book_id: str) -> tuple[bool, str]:
     merged = merge(existing, matched)
     if merged.get("files") != existing.get("files") or "file_durations" not in existing:
         merged["file_durations"] = read_durations(merged["files"], AUDIOBOOKS_PATH)
+        merged["chapters"] = read_chapters(merged["files"], merged["file_durations"], AUDIOBOOKS_PATH)
     else:
         merged["file_durations"] = existing["file_durations"]
+        if "chapters" not in existing:
+            merged["chapters"] = read_chapters(merged["files"], merged["file_durations"], AUDIOBOOKS_PATH)
+        else:
+            merged["chapters"] = existing["chapters"]
 
     # Replace old entry (book_id won't change for same path)
     existing_books.pop(book_id, None)

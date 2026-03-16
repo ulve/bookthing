@@ -432,17 +432,36 @@ async function renderBookDetail(bookId) {
     ? `<div class="series detail-series-link" data-series="${esc(book.series)}">${esc(book.series)}${book.number_in_series != null ? ` #${book.number_in_series}` : ""}</div>`
     : "";
 
-  const tracksHtml = (book.files || []).map((f, i) => `
-    <div class="track-item" data-index="${i}">
-      <span class="track-num">${i + 1}</span>
-      <span class="track-name">${esc(f.name)}</span>
-    </div>`).join("");
+  const chapters = book.chapters || [];
+  const hasChapters = chapters.length > 0;
 
-  const trackSection = book.file_count > 1 ? `
-    <div class="track-list-section">
-      <h3>Tracks (${book.file_count})</h3>
-      <div class="track-list">${tracksHtml}</div>
-    </div>` : "";
+  const chaptersHtml = hasChapters
+    ? chapters.map((ch, i) => `
+      <div class="chapter-item" data-start="${ch.start}">
+        <span class="track-num">${i + 1}</span>
+        <span class="track-name">${esc(ch.title)}</span>
+      </div>`).join("")
+    : "";
+
+  const tracksHtml = !hasChapters
+    ? (book.files || []).map((f, i) => `
+      <div class="track-item" data-index="${i}">
+        <span class="track-num">${i + 1}</span>
+        <span class="track-name">${esc(f.name)}</span>
+      </div>`).join("")
+    : "";
+
+  const trackSection = hasChapters
+    ? `<div class="track-list-section">
+        <h3>Chapters (${chapters.length})</h3>
+        <div class="track-list">${chaptersHtml}</div>
+      </div>`
+    : book.file_count > 1
+      ? `<div class="track-list-section">
+          <h3>Tracks (${book.file_count})</h3>
+          <div class="track-list">${tracksHtml}</div>
+        </div>`
+      : "";
 
   const adminEditBtn = session?.is_admin
     ? `<button class="btn" id="edit-meta-btn">Edit metadata</button>` : "";
@@ -544,6 +563,18 @@ async function renderBookDetail(bookId) {
         window.Player.jumpToTrack(idx);
       } else {
         window.Player?.loadBook(book, idx);
+      }
+    });
+  });
+
+  document.querySelectorAll(".chapter-item").forEach(el => {
+    el.addEventListener("click", () => {
+      const start = parseFloat(el.dataset.start);
+      clientLog("info", "select chapter", { book_id: book.book_id, start });
+      if (window.Player?.currentBookId() === book.book_id) {
+        window.Player.jumpToChapter(start);
+      } else {
+        window.Player?.loadBook(book, null, { startAtSeconds: start });
       }
     });
   });

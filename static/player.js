@@ -20,6 +20,7 @@ let state = {
   isScrubbing: false,
   saveTimer: null,
   timeMode: 1,      // 0=part left, 1=book left, 2=percent
+  lastChapterIdx: -1,
 };
 
 export function fmt(secs) {
@@ -36,6 +37,28 @@ function updatePlayBtn() {
   btnPlay.innerHTML = audio.paused ? "&#9654;" : "&#9646;&#9646;";
 }
 
+function secondsToTrackSeek(startSeconds, fileDurations) {
+  let remaining = startSeconds;
+  for (let i = 0; i < fileDurations.length; i++) {
+    if (remaining <= fileDurations[i]) return { trackIndex: i, seekTo: remaining };
+    remaining -= fileDurations[i];
+  }
+  return { trackIndex: Math.max(0, fileDurations.length - 1), seekTo: 0 };
+}
+
+function currentChapterIndex() {
+  const chapters = state.book?.chapters;
+  if (!chapters?.length) return -1;
+  const durs = state.book.file_durations || [];
+  const elapsed = durs.slice(0, state.trackIndex).reduce((a, v) => a + v, 0) + (audio.currentTime || 0);
+  let idx = 0;
+  for (let i = 0; i < chapters.length; i++) {
+    if (chapters[i].start <= elapsed) idx = i;
+    else break;
+  }
+  return idx;
+}
+
 function bookProgressInfo() {
   const durs = state.book?.file_durations || [];
   const bookTotal = durs.reduce((a, v) => a + v, 0);
@@ -49,6 +72,9 @@ function updateProgress() {
   const cur = audio.currentTime;
   timeCurrent.textContent = fmt(cur);
   if (dur > 0) scrubber.value = (cur / dur) * 100;
+
+  // Refresh chapter name if it has changed (chapters can change mid-track for single M4B)
+  if (state.book?.chapters?.length) updateTrackDisplay();
 
   const { bookTotal, elapsed } = bookProgressInfo();
 
@@ -68,16 +94,25 @@ function updateProgress() {
 function updateTrackDisplay() {
   if (!state.book) return;
   const files = state.book.files || [];
-  const track = files[state.trackIndex];
+  const chapters = state.book.chapters;
   playerTitle.textContent = state.book.title || "Unknown";
-  playerTrack.textContent = track
-    ? `Track ${state.trackIndex + 1} / ${files.length}`
-    : "";
 
-  // Update track list active state in detail view if visible
-  document.querySelectorAll(".track-item").forEach((el, i) => {
-    el.classList.toggle("active", i === state.trackIndex);
-  });
+  if (chapters?.length) {
+    const idx = currentChapterIndex();
+    if (idx !== state.lastChapterIdx) {
+      state.lastChapterIdx = idx;
+      playerTrack.textContent = chapters[idx]?.title ?? "";
+      document.querySelectorAll(".chapter-item").forEach((el, i) => {
+        el.classList.toggle("active", i === idx);
+      });
+    }
+  } else {
+    const track = files[state.trackIndex];
+    playerTrack.textContent = track ? `Track ${state.trackIndex + 1} / ${files.length}` : "";
+    document.querySelectorAll(".track-item").forEach((el, i) => {
+      el.classList.toggle("active", i === state.trackIndex);
+    });
+  }
 
   updateMediaSession();
 }
@@ -242,9 +277,10 @@ timeTotal.title = "Click to cycle: part left / book left / percent";
 
 // ── Public API ─────────────────────────────────────────────────────
 
-async function loadBook(book, forceTrackIndex = null, { paused = false } = {}) {
+async function loadBook(book, forceTrackIndex = null, { paused = false, startAtSeconds = null } = {}) {
   window.clientLog?.("info", "load book", { book_id: book.book_id, title: book.title });
   state.book = book;
+  state.lastChapterIdx = -1;
 
   // Remember last-played book across page reloads
   try { localStorage.setItem("bookthing.lastBook", book.book_id); } catch (_) {}
@@ -262,6 +298,12 @@ async function loadBook(book, forceTrackIndex = null, { paused = false } = {}) {
 
   if (forceTrackIndex !== null) {
     loadTrack(forceTrackIndex, 0, !paused);
+    return;
+  }
+
+  if (startAtSeconds !== null) {
+    const { trackIndex, seekTo } = secondsToTrackSeek(startAtSeconds, book.file_durations || []);
+    loadTrack(trackIndex, seekTo, !paused);
     return;
   }
 
@@ -284,6 +326,11 @@ function jumpToTrack(index) {
   loadTrack(index, 0);
 }
 
+function jumpToChapter(startSeconds) {
+  const { trackIndex, seekTo } = secondsToTrackSeek(startSeconds, state.book?.file_durations || []);
+  loadTrack(trackIndex, seekTo);
+}
+
 function currentBookId() {
   return state.book?.book_id ?? null;
 }
@@ -294,4 +341,4 @@ document.getElementById("player-bar").querySelector(".player-info").addEventList
   window.navigate?.(`/book/${state.book.book_id}`);
 });
 
-window.Player = { loadBook, jumpToTrack, currentBookId };
+window.Player = { loadBook, jumpToTrack, jumpToChapter, currentBookId };
