@@ -543,7 +543,8 @@ input:focus, select:focus {
   line-height: 1.65;
   color: var(--text-muted);
 }
-.book-description p { margin: 0; }
+.book-description p { margin: 0 0 0.75em; }
+.book-description p:last-child { margin-bottom: 0; }
 
 /* ============================================================
    Book links (detail page)

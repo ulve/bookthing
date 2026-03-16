@@ -467,7 +467,7 @@ async function renderBookDetail(bookId) {
     ? `<button class="btn" id="edit-meta-btn">Edit metadata</button>` : "";
 
   const descHtml = book.description
-    ? `<div class="book-description"><p>${esc(book.description)}</p></div>`
+    ? `<div class="book-description">${book.description.split(/\n\s*\n/).map(p => `<p>${esc(p.trim())}</p>`).join("")}</div>`
     : "";
 
   const linksHtml = (book.links || []).length
