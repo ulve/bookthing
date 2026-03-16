@@ -197,6 +197,8 @@ input:focus, select:focus {
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .filter-tag-chip {
