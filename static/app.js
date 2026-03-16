@@ -282,6 +282,8 @@ async function refreshLibraryView(session) {
     books = books.filter(b => { const p = calcPct(positions[b.book_id], b); return p > 0 && p < 99; });
   } else if (filterState.status === "unlistened") {
     books = books.filter(b => !positions[b.book_id] || calcPct(positions[b.book_id], b) === 0);
+  } else if (filterState.status === "completed") {
+    books = books.filter(b => calcPct(positions[b.book_id], b) >= 99);
   }
 
   // If the layout is already mounted, only update the book grid to preserve focus
@@ -338,6 +340,7 @@ async function refreshLibraryView(session) {
             <span class="status-chip${filterState.status === "" ? " active" : ""}" data-status="">All</span>
             <span class="status-chip${filterState.status === "listening" ? " active" : ""}" data-status="listening">Listening</span>
             <span class="status-chip${filterState.status === "unlistened" ? " active" : ""}" data-status="unlistened">Unlistened</span>
+            <span class="status-chip${filterState.status === "completed" ? " active" : ""}" data-status="completed">Completed</span>
           </div>
         </div>
         <button class="btn btn-clear" id="clear-filters">Clear filters</button>
