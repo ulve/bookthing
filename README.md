@@ -4,6 +4,8 @@ A self-hosted audiobook streaming web app with magic-link authentication. No pas
 
 ![Library view](docs/screenshots/library.png)
 
+The library shows all your books as a grid. Books with reading progress show a progress bar; completed books show a checkmark. The player bar docks at the bottom of every page while audio is playing.
+
 <details>
 <summary>More screenshots</summary>
 
@@ -11,17 +13,29 @@ A self-hosted audiobook streaming web app with magic-link authentication. No pas
 
 ![Filters](docs/screenshots/filters.png)
 
-**Book detail** (description, Goodreads link, chapters, listening log)
+Filter your library by any combination of:
+- Free-text search across title, author and series
+- Author and series dropdowns
+- Tag chips — click to toggle, multiple tags narrow the results
+- Status: All / Listening (in progress) / Unlistened / Completed
+
+**Book detail**
 
 ![Book detail](docs/screenshots/book-detail.png)
 
-**Player bar**
+Each book page shows the cover, series position, tags, total duration, and your progress. Below that: a description, external links (e.g. Goodreads), the track list, and a listening log showing every session with its date, duration listened, and how far through the book you got.
+
+**Player**
 
 ![Player](docs/screenshots/player.png)
 
-**Login page**
+The persistent player bar shows the cover thumbnail, title, and current track. Controls: skip back, play/pause, skip forward, a scrubable progress bar with elapsed time, time remaining, and a playback speed selector.
+
+**Login**
 
 ![Login](docs/screenshots/login.png)
+
+No passwords. Enter your email and a one-time login link is sent to your inbox. Only addresses on the allowed list can sign in.
 
 </details>
 
