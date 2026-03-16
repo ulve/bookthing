@@ -530,6 +530,62 @@ input:focus, select:focus {
   flex-wrap: wrap;
 }
 
+.detail-edit-panel {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.detail-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.detail-edit-row label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  width: 6rem;
+  flex-shrink: 0;
+}
+
+.detail-edit-row--desc {
+  align-items: flex-start;
+}
+
+.detail-edit-row--desc label {
+  padding-top: 0.35rem;
+}
+
+.detail-edit-row textarea.detail-edit-input {
+  flex: 1;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.detail-edit-row input.detail-edit-input {
+  flex: 1;
+}
+
+.detail-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.detail-edit-status {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 /* ============================================================
    Book description (detail page)
    ============================================================ */

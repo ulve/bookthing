@@ -484,7 +484,37 @@ async function renderBookDetail(bookId) {
       : "";
 
   const adminEditBtn = session?.is_admin
-    ? `<button class="btn" id="edit-meta-btn">Edit metadata</button>` : "";
+    ? `<button class="btn" id="edit-meta-btn">&#9998; Edit metadata</button>` : "";
+
+  const adminEditPanel = session?.is_admin ? `
+    <div class="detail-edit-panel" id="detail-edit-panel" hidden>
+      <div class="detail-edit-row">
+        <label>Title</label>
+        <input class="admin-input detail-edit-input" id="de-title" value="${esc(book.title || "")}">
+      </div>
+      <div class="detail-edit-row">
+        <label>Author</label>
+        <input class="admin-input detail-edit-input" id="de-author" value="${esc(book.author || "")}">
+      </div>
+      <div class="detail-edit-row">
+        <label>Series</label>
+        <input class="admin-input admin-input-series detail-edit-input" id="de-series" value="${esc(book.series || "")}">
+        <input class="admin-input admin-input-num detail-edit-input" id="de-num" type="number" step="0.5" min="0" placeholder="#" value="${book.number_in_series ?? ""}">
+      </div>
+      <div class="detail-edit-row">
+        <label>Tags</label>
+        <input class="admin-input detail-edit-input" id="de-tags" value="${esc((book.tags || []).join(", "))}">
+      </div>
+      <div class="detail-edit-row detail-edit-row--desc">
+        <label>Description</label>
+        <textarea class="admin-input detail-edit-input" id="de-desc" rows="6">${esc(book.description || "")}</textarea>
+      </div>
+      <div class="detail-edit-actions">
+        <button class="btn btn-accent" id="de-save-btn">Save</button>
+        <button class="btn" id="de-cancel-btn">Cancel</button>
+        <span class="detail-edit-status" id="de-status"></span>
+      </div>
+    </div>` : "";
 
   const descHtml = book.description
     ? `<div class="book-description">${book.description.split(/\n\s*\n/).map(p => `<p>${esc(p.trim())}</p>`).join("")}</div>`
@@ -542,6 +572,7 @@ async function renderBookDetail(bookId) {
           </div>
         </div>
       </div>
+      ${adminEditPanel}
       ${descHtml}
       ${linksHtml}
       ${trackSection}
@@ -577,7 +608,36 @@ async function renderBookDetail(bookId) {
   });
 
   document.getElementById("edit-meta-btn")?.addEventListener("click", () => {
-    navigate("/admin");
+    const panel = document.getElementById("detail-edit-panel");
+    panel.hidden = false;
+    document.getElementById("edit-meta-btn").hidden = true;
+    document.getElementById("de-title").focus();
+  });
+
+  document.getElementById("de-cancel-btn")?.addEventListener("click", () => {
+    document.getElementById("detail-edit-panel").hidden = true;
+    document.getElementById("edit-meta-btn").hidden = false;
+  });
+
+  document.getElementById("de-save-btn")?.addEventListener("click", async () => {
+    const status = document.getElementById("de-status");
+    const numVal = document.getElementById("de-num").value.trim();
+    const body = {
+      title:            document.getElementById("de-title").value.trim(),
+      author:           document.getElementById("de-author").value.trim(),
+      series:           document.getElementById("de-series").value.trim(),
+      number_in_series: numVal === "" ? null : parseFloat(numVal),
+      tags:             document.getElementById("de-tags").value.split(",").map(t => t.trim()).filter(Boolean),
+      description:      document.getElementById("de-desc").value.trim(),
+    };
+    status.textContent = "Saving…";
+    try {
+      await api(`/api/admin/books/${book.book_id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      status.textContent = "Saved.";
+      setTimeout(() => navigate(`/book/${book.book_id}`), 600);
+    } catch (e) {
+      status.textContent = "Error saving.";
+    }
   });
 
   document.querySelectorAll(".track-item").forEach(el => {
