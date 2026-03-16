@@ -6,11 +6,13 @@ import os
 import secrets
 import signal
 import sqlite3
+import struct
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.request
+import zlib
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -134,6 +136,45 @@ SAMPLE_BOOKS = {
 }
 
 
+# Distinct cover colors per book (R, G, B)
+COVER_COLORS = {
+    "58a1ef4144ac": (180, 120,  50),  # Dune — sandy gold
+    "d141618a91e3": (160,  90,  40),  # Dune Messiah
+    "bbbdaad90be1": (140,  70,  30),  # Children of Dune
+    "6af96c9ee785": ( 60, 100, 160),  # Way of Kings — blue
+    "32a3ce7b7f2c": ( 50,  80, 140),  # Words of Radiance
+    "3c3984234200": ( 80, 140, 180),  # Leviathan Wakes — steel blue
+    "36f086af7c71": ( 40, 160, 120),  # Project Hail Mary — teal
+    "871514dd415b": (140,  50,  70),  # Hyperion — dark red
+    "fec10baa2223": (100, 160,  60),  # Guards! Guards! — green
+    "9e931f447093": ( 70,  70,  80),  # The Blade Itself — dark grey
+}
+
+
+def make_png(r: int, g: int, b: int, width: int = 200, height: int = 300) -> bytes:
+    """Generate a minimal solid-color RGB PNG with no external dependencies."""
+    raw = b"".join(b"\x00" + bytes([r, g, b] * width) for _ in range(height))
+    compressed = zlib.compress(raw)
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        body = tag + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", compressed) + chunk(b"IEND", b"")
+
+
+def seed_covers(covers_dir: Path, metadata: dict) -> dict:
+    """Write solid-color PNG covers and update metadata cover fields."""
+    covers_dir.mkdir(parents=True, exist_ok=True)
+    for book_id, color in COVER_COLORS.items():
+        filename = f"{book_id}.png"
+        (covers_dir / filename).write_bytes(make_png(*color))
+        if book_id in metadata["books"]:
+            metadata["books"][book_id]["cover"] = f"__covers/{filename}"
+    return metadata
+
+
 def find_free_port():
     import socket
     with socket.socket() as s:
@@ -190,10 +231,26 @@ def seed_db(db_path: Path, user_id: str, session_id: str):
             (user_id, FEATURED_ID, session_base2 + i, float(i)),
         )
 
-    # Set a position for the featured book (partway through file 1)
+    # Dune (featured) — ongoing, ~45% through
+    # file_durations: [12600, 14400, 11800], total=38800; target ~45% = ~17460s → file 1 @ 4860s
     conn.execute(
-        "INSERT INTO positions (user_id, book_id, file_index, time_seconds, updated_at) VALUES (?, ?, 1, 720.0, ?)",
+        "INSERT INTO positions (user_id, book_id, file_index, time_seconds, updated_at) VALUES (?, ?, 1, 4860.0, ?)",
         (user_id, FEATURED_ID, now),
+    )
+
+    # Project Hail Mary — complete (file 0, near end of 43200s file)
+    COMPLETE_ID = "36f086af7c71"
+    conn.execute(
+        "INSERT INTO positions (user_id, book_id, file_index, time_seconds, updated_at) VALUES (?, ?, 0, 43100.0, ?)",
+        (user_id, COMPLETE_ID, now),
+    )
+
+    # The Way of Kings — ongoing, ~30% through
+    # file_durations: [54000, 54000], total=108000; target ~30% = ~32400s → file 0 @ 32400s
+    ONGOING_ID = "6af96c9ee785"
+    conn.execute(
+        "INSERT INTO positions (user_id, book_id, file_index, time_seconds, updated_at) VALUES (?, ?, 0, 32400.0, ?)",
+        (user_id, ONGOING_ID, now),
     )
 
     conn.commit()
@@ -215,8 +272,10 @@ def main():
         audiobooks_path = tmp / "audiobooks"
         audiobooks_path.mkdir()
 
-        # Write metadata
-        metadata_path.write_text(json.dumps({"books": SAMPLE_BOOKS}))
+        # Write metadata with cover references
+        covers_dir = tmp / "covers"
+        metadata = seed_covers(covers_dir, {"books": dict(SAMPLE_BOOKS)})
+        metadata_path.write_text(json.dumps(metadata))
 
         # Start server
         env = os.environ.copy()
@@ -265,6 +324,13 @@ def main():
 
                 page = context.new_page()
 
+                # --- login.png --- (no auth cookie needed)
+                print("Capturing login.png ...")
+                page.goto(f"{base_url}/login")
+                page.wait_for_load_state("networkidle", timeout=10000)
+                page.screenshot(path=str(OUTPUT_DIR / "login.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'login.png'}")
+
                 # --- library.png ---
                 print("Capturing library.png ...")
                 page.goto(f"{base_url}/")
@@ -299,7 +365,7 @@ def main():
                     page.wait_for_selector("#player-bar:not(.hidden)", timeout=8000)
                 except Exception:
                     print("  Warning: player bar did not appear; screenshotting anyway")
-                page.screenshot(path=str(OUTPUT_DIR / "player.png"), full_page=True)
+                page.locator("#player-bar").screenshot(path=str(OUTPUT_DIR / "player.png"))
                 print(f"  Saved {OUTPUT_DIR / 'player.png'}")
 
                 browser.close()

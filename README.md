@@ -16,6 +16,9 @@ A self-hosted audiobook streaming web app with magic-link authentication. No pas
 **Player bar**
 ![Player](docs/screenshots/player.png)
 
+**Login page**
+![Login](docs/screenshots/login.png)
+
 </details>
 
 ## Requirements
