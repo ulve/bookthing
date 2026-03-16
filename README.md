@@ -8,15 +8,19 @@ A self-hosted audiobook streaming web app with magic-link authentication. No pas
 <summary>More screenshots</summary>
 
 **Filters**
+
 ![Filters](docs/screenshots/filters.png)
 
 **Book detail** (description, Goodreads link, chapters, listening log)
+
 ![Book detail](docs/screenshots/book-detail.png)
 
 **Player bar**
+
 ![Player](docs/screenshots/player.png)
 
 **Login page**
+
 ![Login](docs/screenshots/login.png)
 
 </details>

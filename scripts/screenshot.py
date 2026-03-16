@@ -6,13 +6,12 @@ import os
 import secrets
 import signal
 import sqlite3
-import struct
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.request
-import zlib
+import urllib.parse
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -136,42 +135,39 @@ SAMPLE_BOOKS = {
 }
 
 
-# Distinct cover colors per book (R, G, B)
-COVER_COLORS = {
-    "58a1ef4144ac": (180, 120,  50),  # Dune — sandy gold
-    "d141618a91e3": (160,  90,  40),  # Dune Messiah
-    "bbbdaad90be1": (140,  70,  30),  # Children of Dune
-    "6af96c9ee785": ( 60, 100, 160),  # Way of Kings — blue
-    "32a3ce7b7f2c": ( 50,  80, 140),  # Words of Radiance
-    "3c3984234200": ( 80, 140, 180),  # Leviathan Wakes — steel blue
-    "36f086af7c71": ( 40, 160, 120),  # Project Hail Mary — teal
-    "871514dd415b": (140,  50,  70),  # Hyperion — dark red
-    "fec10baa2223": (100, 160,  60),  # Guards! Guards! — green
-    "9e931f447093": ( 70,  70,  80),  # The Blade Itself — dark grey
-}
-
-
-def make_png(r: int, g: int, b: int, width: int = 200, height: int = 300) -> bytes:
-    """Generate a minimal solid-color RGB PNG with no external dependencies."""
-    raw = b"".join(b"\x00" + bytes([r, g, b] * width) for _ in range(height))
-    compressed = zlib.compress(raw)
-
-    def chunk(tag: bytes, data: bytes) -> bytes:
-        body = tag + data
-        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
-
-    ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
-    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", compressed) + chunk(b"IEND", b"")
+def fetch_cover(title: str, author: str) -> bytes | None:
+    """Fetch a cover image from OpenLibrary. Returns JPEG bytes or None."""
+    try:
+        query = urllib.parse.quote(f"{title} {author}")
+        search_url = f"https://openlibrary.org/search.json?q={query}&limit=1&fields=cover_i"
+        req = urllib.request.Request(search_url, headers={"User-Agent": "bookthing-screenshot/1.0"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read())
+        docs = data.get("docs", [])
+        if not docs or not docs[0].get("cover_i"):
+            return None
+        cover_id = docs[0]["cover_i"]
+        img_url = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
+        req2 = urllib.request.Request(img_url, headers={"User-Agent": "bookthing-screenshot/1.0"})
+        with urllib.request.urlopen(req2, timeout=8) as r:
+            return r.read()
+    except Exception as e:
+        print(f"  Warning: could not fetch cover for {title!r}: {e}")
+        return None
 
 
 def seed_covers(covers_dir: Path, metadata: dict) -> dict:
-    """Write solid-color PNG covers and update metadata cover fields."""
+    """Fetch real covers from OpenLibrary; update metadata cover fields."""
     covers_dir.mkdir(parents=True, exist_ok=True)
-    for book_id, color in COVER_COLORS.items():
-        filename = f"{book_id}.png"
-        (covers_dir / filename).write_bytes(make_png(*color))
-        if book_id in metadata["books"]:
+    for book_id, book in metadata["books"].items():
+        print(f"  Fetching cover: {book['title']} ...")
+        img = fetch_cover(book["title"], book["author"])
+        if img:
+            filename = f"{book_id}.jpg"
+            (covers_dir / filename).write_bytes(img)
             metadata["books"][book_id]["cover"] = f"__covers/{filename}"
+        else:
+            print(f"  No cover found for {book['title']}, skipping")
     return metadata
 
 
