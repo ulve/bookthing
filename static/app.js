@@ -302,6 +302,8 @@ function buildBookCards(books, positions, lastVisit) {
 async function refreshLibraryView(session) {
   if (!session) session = await getSession();
   const lastVisit = parseInt(localStorage.getItem("lastLibraryVisit") || "0", 10) || null;
+  const MIN_VISIT_GAP_MS = 24 * 3600 * 1000;
+  const shouldUpdateVisit = !lastVisit || (Date.now() - lastVisit) > MIN_VISIT_GAP_MS;
   const params = new URLSearchParams();
   if (filterState.search) params.set("search", filterState.search);
   if (filterState.author) params.set("author", filterState.author);
@@ -329,7 +331,7 @@ async function refreshLibraryView(session) {
   const grid = document.getElementById("book-grid");
   if (grid) {
     grid.innerHTML = buildBookCards(books, positions, lastVisit);
-    localStorage.setItem("lastLibraryVisit", String(Date.now()));
+    if (shouldUpdateVisit) localStorage.setItem("lastLibraryVisit", String(Date.now()));
     return;
   }
 
