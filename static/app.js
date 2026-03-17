@@ -4,6 +4,7 @@
 import { fmt } from "./player.js";
 
 const COMPLETED_PCT = 99;
+const NEW_BADGE_HOURS = 72;
 
 const STATUS = {
   LISTENING:   "listening",
@@ -264,7 +265,9 @@ function calcPct(pos, book) {
   return 0;
 }
 
-function buildBookCards(books, positions) {
+function buildBookCards(books, positions, lastVisit) {
+  const now = Date.now();
+  const cutoff = now - NEW_BADGE_HOURS * 3600 * 1000;
   return books.length
     ? books.map(b => {
         const pos = positions[b.book_id];
@@ -274,11 +277,15 @@ function buildBookCards(books, positions) {
           ? `<div class="book-progress"><div class="book-progress-fill" style="width:${pct}%"></div></div>`
           : "";
         const doneCheck = done ? `<div class="book-done-check" title="Finished">✓</div>` : "";
+        const addedMs = b.date_added ? new Date(b.date_added).getTime() : 0;
+        const isNew = addedMs > cutoff && addedMs > (lastVisit ?? 0);
+        const newBadge = isNew ? `<div class="book-new-badge">NEW</div>` : "";
         return `
         <div class="book-card" data-id="${b.book_id}">
           <div class="book-cover-container">
             ${coverHtml(b)}
             ${doneCheck}
+            ${newBadge}
           </div>
           <div class="book-info">
             <div class="book-title">${esc(b.title || "Untitled")}</div>
@@ -294,6 +301,7 @@ function buildBookCards(books, positions) {
 
 async function refreshLibraryView(session) {
   if (!session) session = await getSession();
+  const lastVisit = parseInt(localStorage.getItem("lastLibraryVisit") || "0", 10) || null;
   const params = new URLSearchParams();
   if (filterState.search) params.set("search", filterState.search);
   if (filterState.author) params.set("author", filterState.author);
@@ -320,7 +328,8 @@ async function refreshLibraryView(session) {
   // If the layout is already mounted, only update the book grid to preserve focus
   const grid = document.getElementById("book-grid");
   if (grid) {
-    grid.innerHTML = buildBookCards(books, positions);
+    grid.innerHTML = buildBookCards(books, positions, lastVisit);
+    localStorage.setItem("lastLibraryVisit", String(Date.now()));
     return;
   }
 
@@ -386,8 +395,10 @@ async function refreshLibraryView(session) {
         </div>
         <button class="btn btn-clear" id="clear-filters">Clear filters</button>
       </aside>
-      <div class="book-grid" id="book-grid">${buildBookCards(books, positions)}</div>
+      <div class="book-grid" id="book-grid">${buildBookCards(books, positions, lastVisit)}</div>
     </div>`;
+
+  localStorage.setItem("lastLibraryVisit", String(Date.now()));
 
   // Restore scroll position when returning from a book detail page
   if (savedLibraryScroll > 0) {
