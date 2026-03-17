@@ -218,9 +218,10 @@ def list_books(
     author: str = None,
     series: str = None,
     tags: str = None,
+    sort: str = "newest",
     _session=Depends(require_auth),
 ):
-    return books_module.get_book_list(search=search, author=author, series=series, tags=tags)
+    return books_module.get_book_list(search=search, author=author, series=series, tags=tags, sort=sort)
 
 
 @app.get("/api/books/{book_id}")

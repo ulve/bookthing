@@ -64,7 +64,7 @@ class TestGetBookList:
         assert "book2" in ids
 
     def test_sorted_by_author_title(self, temp_metadata):
-        result = books_module.get_book_list()
+        result = books_module.get_book_list(sort="author")
         authors = [b["author"] for b in result]
         assert authors == sorted(authors)
 

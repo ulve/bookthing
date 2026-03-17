@@ -13,11 +13,12 @@ The library shows all your books as a grid. Books with reading progress show a p
 
 ![Filters](docs/screenshots/filters.png)
 
-Filter your library by any combination of:
+Filter and sort your library by any combination of:
 - Free-text search across title, author and series
 - Author and series dropdowns
 - Tag chips — click to toggle, multiple selected tags broaden the results (OR)
 - Status: All / Listening (in progress) / Unlistened / Completed
+- Sort: Newest first (default) / Oldest first / Series / Author / Title
 
 **Book detail**
 

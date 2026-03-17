@@ -127,7 +127,7 @@ def clear_book_cover(book_id: str) -> bool:
     return True
 
 
-def get_book_list(search: str = None, author: str = None, series: str = None, tags: str = None) -> list:
+def get_book_list(search: str = None, author: str = None, series: str = None, tags: str = None, sort: str = "newest") -> list:
     data = load_metadata()
     books = list(data.get("books", {}).values())
 
@@ -154,23 +154,26 @@ def get_book_list(search: str = None, author: str = None, series: str = None, ta
             if any(t in [x.lower() for x in (b.get("tags") or [])] for t in tag_list)
         ]
 
-    # When filtering by series, sort by number in series; otherwise by author, series+number, title
-    if series:
-        def sort_key(b):
-            return (
-                b.get("number_in_series") or 0,
-                b.get("title") or "",
-            )
-    else:
-        def sort_key(b):
-            return (
-                b.get("author") or "",
+    if sort == "oldest":
+        books.sort(key=lambda b: (b.get("date_added") or "", b.get("title") or ""))
+    elif sort == "author":
+        books.sort(key=lambda b: (b.get("author") or "", b.get("title") or ""))
+    elif sort == "title":
+        books.sort(key=lambda b: (b.get("title") or ""))
+    elif sort == "series":
+        if series:
+            books.sort(key=lambda b: (b.get("number_in_series") or 0, b.get("title") or ""))
+        else:
+            books.sort(key=lambda b: (
+                0 if b.get("series") else 1,
                 b.get("series") or "",
                 b.get("number_in_series") or 0,
                 b.get("title") or "",
-            )
-
-    books.sort(key=sort_key)
+            ))
+    else:  # newest (default)
+        # stable sort: first by title A→Z, then by date desc (preserves title order within same date)
+        books.sort(key=lambda b: (b.get("title") or ""))
+        books.sort(key=lambda b: (b.get("date_added") or ""), reverse=True)
     return [_book_summary(b) for b in books]
 
 
@@ -257,6 +260,7 @@ def _book_summary(b: dict) -> dict:
         "has_cover": bool(_cover_exists(b)),
         "file_count": len(b.get("files") or []),
         "file_durations": b.get("file_durations") or [],
+        "date_added": b.get("date_added"),
     }
 
 

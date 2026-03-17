@@ -8,6 +8,7 @@ import hashlib
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Allow running from any directory
@@ -363,6 +364,8 @@ def merge(existing: dict, new_entry: dict) -> dict:
     if existing_cover.startswith(UPLOADED_COVER_PREFIX) and "_emb." not in existing_cover:
         merged["cover"] = existing_cover
     merged.pop("missing", None)
+    if "date_added" in existing:
+        merged["date_added"] = existing["date_added"]
     return merged
 
 
@@ -389,6 +392,7 @@ def main():
         if book_id in existing_books:
             new_books[book_id] = merge(existing, entry)
         else:
+            entry["date_added"] = datetime.now(timezone.utc).isoformat()
             new_books[book_id] = entry
             print(f"  + New: {entry['path']}")
 

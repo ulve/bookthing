@@ -75,7 +75,7 @@ function route() {
 
 // ── Library state ──────────────────────────────────────────────────
 
-let filterState = { search: "", author: "", series: "", tags: [], status: "" };
+let filterState = { search: "", author: "", series: "", tags: [], status: "", sort: "newest" };
 let metaCache = { authors: null, series: null, tags: null };
 let savedLibraryScroll = 0;
 
@@ -283,6 +283,7 @@ async function refreshLibraryView(session) {
   if (filterState.author) params.set("author", filterState.author);
   if (filterState.series) params.set("series", filterState.series);
   if (filterState.tags.length) params.set("tags", filterState.tags.join(","));
+  params.set("sort", filterState.sort);
 
   let books, positions;
   try {
@@ -357,6 +358,16 @@ async function refreshLibraryView(session) {
           <label>Tags</label>
           <div class="filter-tag-chips" id="filter-tag-chips">${tagChipsFilter}</div>
         </div>
+        <div class="filter-group">
+          <label for="sort-select">Sort</label>
+          <select id="sort-select">
+            <option value="newest" ${filterState.sort === "newest" ? "selected" : ""}>Newest first</option>
+            <option value="oldest" ${filterState.sort === "oldest" ? "selected" : ""}>Oldest first</option>
+            <option value="series" ${filterState.sort === "series" ? "selected" : ""}>Series</option>
+            <option value="author" ${filterState.sort === "author" ? "selected" : ""}>Author</option>
+            <option value="title" ${filterState.sort === "title" ? "selected" : ""}>Title</option>
+          </select>
+        </div>
         <button class="btn btn-clear" id="clear-filters">Clear filters</button>
       </aside>
       <div class="book-grid" id="book-grid">${buildBookCards(books, positions)}</div>
@@ -391,6 +402,11 @@ async function refreshLibraryView(session) {
     refreshLibraryView(session);
   });
 
+  document.getElementById("sort-select").addEventListener("change", e => {
+    filterState.sort = e.target.value;
+    refreshLibraryView(session);
+  });
+
   document.getElementById("filter-tag-chips").addEventListener("click", e => {
     const chip = e.target.closest(".filter-tag-chip");
     if (!chip) return;
@@ -413,10 +429,11 @@ async function refreshLibraryView(session) {
   });
 
   document.getElementById("clear-filters").addEventListener("click", () => {
-    filterState = { search: "", author: "", series: "", tags: [], status: "" };
+    filterState = { search: "", author: "", series: "", tags: [], status: "", sort: "newest" };
     document.getElementById("search-input").value = "";
     document.getElementById("author-select").value = "";
     document.getElementById("series-select").value = "";
+    document.getElementById("sort-select").value = "newest";
     document.querySelectorAll(".filter-tag-chip").forEach(c => c.classList.remove("active"));
     document.querySelectorAll(".status-chip").forEach(c => c.classList.toggle("active", c.dataset.status === ""));
     refreshLibraryView(session);
