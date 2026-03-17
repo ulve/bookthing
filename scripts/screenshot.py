@@ -12,12 +12,14 @@ import tempfile
 import time
 import urllib.request
 import urllib.parse
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = REPO_ROOT / "docs" / "screenshots"
 
 FEATURED_ID = "58a1ef4144ac"  # Dune by Frank Herbert
+_NOW = datetime.now(timezone.utc).isoformat()
 
 SAMPLE_BOOKS = {
     "58a1ef4144ac": {
@@ -94,6 +96,7 @@ SAMPLE_BOOKS = {
         "tags": ["sci-fi", "space-opera"],
         "files": ["leviathan-wakes/full.mp3"],
         "file_durations": [57600.0],
+        "date_added": _NOW,
     },
     "36f086af7c71": {
         "book_id": "36f086af7c71",
@@ -102,6 +105,7 @@ SAMPLE_BOOKS = {
         "tags": ["sci-fi", "adventure"],
         "files": ["project-hail-mary/full.mp3"],
         "file_durations": [43200.0],
+        "date_added": _NOW,
     },
     "871514dd415b": {
         "book_id": "871514dd415b",

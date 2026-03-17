@@ -4,7 +4,7 @@ A self-hosted audiobook streaming web app with magic-link authentication. No pas
 
 ![Library view](docs/screenshots/library.png)
 
-The library shows all your books as a grid. Books with reading progress show a progress bar; completed books show a checkmark. The player bar docks at the bottom of every page while audio is playing.
+The library shows all your books as a grid. Books with reading progress show a progress bar; completed books show a checkmark. Books added within the last 72 hours since your last visit get a NEW badge. The player bar docks at the bottom of every page while audio is playing.
 
 <details>
 <summary>More screenshots</summary>
@@ -24,7 +24,7 @@ Filter and sort your library by any combination of:
 
 ![Book detail](docs/screenshots/book-detail.png)
 
-Each book page shows the cover, series position, tags, total duration, and your progress. Below that: a description, external links (e.g. Goodreads), the track list, and a listening log showing every session with its date, duration listened, and how far through the book you got.
+Each book page shows the cover, series position, tags, total duration, date added, and your progress. Below that: a description, external links (e.g. Goodreads), the track list, and a listening log showing every session with its date, duration listened, and how far through the book you got.
 
 **Player**
 
