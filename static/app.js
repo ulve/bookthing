@@ -265,8 +265,7 @@ function calcPct(pos, book) {
   return 0;
 }
 
-function buildBookCards(books, positions) {
-  const cutoff = Date.now() - NEW_BADGE_HOURS * 3600 * 1000;
+function buildBookCards(books, positions, newCutoff) {
   return books.length
     ? books.map(b => {
         const pos = positions[b.book_id];
@@ -276,7 +275,7 @@ function buildBookCards(books, positions) {
           ? `<div class="book-progress"><div class="book-progress-fill" style="width:${pct}%"></div></div>`
           : "";
         const doneCheck = done ? `<div class="book-done-check" title="Finished">✓</div>` : "";
-        const isNew = b.date_added && new Date(b.date_added).getTime() > cutoff;
+        const isNew = newCutoff !== null && b.date_added && new Date(b.date_added).getTime() > newCutoff;
         const newBadge = isNew ? `<div class="book-new-badge">NEW</div>` : "";
         return `
         <div class="book-card" data-id="${b.book_id}">
@@ -295,6 +294,33 @@ function buildBookCards(books, positions) {
         </div>`;
       }).join("")
     : `<div class="empty-state"><p>No books found.</p></div>`;
+}
+
+function computeNewCutoff(books) {
+  const now = Date.now();
+  const WINDOW_MS = NEW_BADGE_HOURS * 3600 * 1000;
+  const lastVisit   = parseInt(localStorage.getItem("lastLibraryVisit")  || "0", 10);
+  const seenAt      = parseInt(localStorage.getItem("newBooksSeenAt")    || "0", 10);
+  const cutoffStore = parseInt(localStorage.getItem("newBooksCutoff")    || "0", 10);
+
+  // Are there books added since the previous visit?
+  const hasNew = books.some(b => b.date_added && new Date(b.date_added).getTime() > lastVisit);
+
+  let cutoff = cutoffStore;
+  let newSeenAt = seenAt;
+
+  if (hasNew && (seenAt === 0 || (now - seenAt) > WINDOW_MS)) {
+    // First time seeing this batch of new books — open a fresh 72h window
+    cutoff = lastVisit;
+    newSeenAt = now;
+    localStorage.setItem("newBooksCutoff", String(cutoff));
+    localStorage.setItem("newBooksSeenAt", String(newSeenAt));
+  }
+
+  localStorage.setItem("lastLibraryVisit", String(now));
+
+  // Return the cutoff if still within the 72h window, otherwise null (no badges)
+  return (newSeenAt > 0 && (now - newSeenAt) < WINDOW_MS) ? cutoff : null;
 }
 
 async function refreshLibraryView(session) {
@@ -325,8 +351,7 @@ async function refreshLibraryView(session) {
   // If the layout is already mounted, only update the book grid to preserve focus
   const grid = document.getElementById("book-grid");
   if (grid) {
-    grid.innerHTML = buildBookCards(books, positions);
-    if (shouldUpdateVisit) localStorage.setItem("lastLibraryVisit", String(Date.now()));
+    grid.innerHTML = buildBookCards(books, positions, computeNewCutoff(books));
     return;
   }
 
@@ -392,10 +417,8 @@ async function refreshLibraryView(session) {
         </div>
         <button class="btn btn-clear" id="clear-filters">Clear filters</button>
       </aside>
-      <div class="book-grid" id="book-grid">${buildBookCards(books, positions)}</div>
+      <div class="book-grid" id="book-grid">${buildBookCards(books, positions, computeNewCutoff(books))}</div>
     </div>`;
-
-  localStorage.setItem("lastLibraryVisit", String(Date.now()));
 
   // Restore scroll position when returning from a book detail page
   if (savedLibraryScroll > 0) {
