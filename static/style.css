@@ -519,6 +519,12 @@ input:focus, select:focus {
   margin-bottom: 0.5rem;
 }
 
+.detail-date-added {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
 .detail-progress-line {
   display: flex;
   align-items: center;

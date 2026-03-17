@@ -563,6 +563,10 @@ async function renderBookDetail(bookId) {
     ? `<div class="detail-duration">${fmtDuration(book.total_seconds)}</div>`
     : "";
 
+  const dateAddedLine = book.date_added
+    ? `<div class="detail-date-added">Added ${new Date(book.date_added).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</div>`
+    : "";
+
   let progressLine = "";
   if (pos && (pos.file_index > 0 || pos.time_seconds > 0)) {
     const durs = book.file_durations || [];
@@ -597,6 +601,7 @@ async function renderBookDetail(bookId) {
           ${seriesLine}
           ${tagChips(book.tags, true)}
           ${durationLine}
+          ${dateAddedLine}
           ${progressLine}
           <div class="detail-actions">
             <button class="btn btn-accent" id="play-btn">&#9654; Play</button>

@@ -36,6 +36,7 @@ SAMPLE_BOOKS = {
             "the destruction of Paul's family will set the boy on a journey toward a destiny "
             "greater than he could ever have imagined."
         ),
+        "date_added": "2025-12-29T10:52:09+00:00",
         "links": [{"label": "Goodreads", "url": "https://www.goodreads.com/book/show/44767458-dune"}],
         "files": [
             "dune/part1_the_prophet.mp3",
