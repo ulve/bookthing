@@ -1,4 +1,4 @@
-const CACHE = 'bookthing-v5';
+const CACHE = 'bookthing-v6';
 const STATIC = ['/icon-nav.svg', '/icon-192.webp', '/icon-512.webp', '/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
