@@ -47,6 +47,8 @@ def request_magic_link(email: str) -> None:
 
     # Rate limit: silently drop if a link was sent too recently
     now_f = time.time()
+    for k in [k for k, v in _last_sent.items() if now_f - v > _RATE_LIMIT_SECONDS]:
+        del _last_sent[k]
     if now_f - _last_sent.get(email, 0) < _RATE_LIMIT_SECONDS:
         logger.info("Rate limit: suppressing login email for %s", email)
         return

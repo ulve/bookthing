@@ -126,6 +126,12 @@ class TestPositionApi:
         assert "book1" in data
 
 
+class TestAdminAuthBoundary:
+    def test_non_admin_scan_returns_403(self, auth_client):
+        resp = auth_client.post("/api/admin/scan")
+        assert resp.status_code == 403
+
+
 class TestMagicLinkFlow:
     def test_magic_link_page_returns_html(self, client):
         resp = client.get("/auth/magic/sometoken")

@@ -83,59 +83,42 @@ def client(tmp_path, monkeypatch):
         yield c
 
 
-@pytest.fixture
-def auth_client(client):
-    """TestClient with a valid user session cookie set."""
-    email = "user@example.com"
-    now = int(time.time())
-
+def _insert_user_session(client, email: str, is_admin: bool) -> None:
+    """Insert an allowed_email + user + session row and set the session cookie on client."""
     from app.db import get_db
     from app.auth import get_or_create_user
 
+    now = int(time.time())
+    admin_flag = 1 if is_admin else 0
+
     with get_db() as db:
         db.execute(
-            "INSERT INTO allowed_emails (email, is_admin, added_at) VALUES (?, 0, ?)",
-            (email, now),
+            "INSERT INTO allowed_emails (email, is_admin, added_at) VALUES (?, ?, ?)",
+            (email, admin_flag, now),
         )
-    user_id = get_or_create_user(email)
+    user_id = get_or_create_user(email, is_admin=is_admin)
 
     session_id = secrets.token_urlsafe(32)
     expires_at = now + 86400
     with get_db() as db:
         db.execute(
             "INSERT INTO sessions (session_id, user_id, created_at, expires_at, last_seen, is_admin) "
-            "VALUES (?, ?, ?, ?, ?, 0)",
-            (session_id, user_id, now, expires_at, now),
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (session_id, user_id, now, expires_at, now, admin_flag),
         )
 
     client.cookies.set("session", session_id)
+
+
+@pytest.fixture
+def auth_client(client):
+    """TestClient with a valid user session cookie set."""
+    _insert_user_session(client, "user@example.com", is_admin=False)
     return client
 
 
 @pytest.fixture
 def admin_client(client):
     """TestClient with a valid admin session cookie set."""
-    email = "admin@example.com"
-    now = int(time.time())
-
-    from app.db import get_db
-    from app.auth import get_or_create_user
-
-    with get_db() as db:
-        db.execute(
-            "INSERT INTO allowed_emails (email, is_admin, added_at) VALUES (?, 1, ?)",
-            (email, now),
-        )
-    user_id = get_or_create_user(email, is_admin=True)
-
-    session_id = secrets.token_urlsafe(32)
-    expires_at = now + 86400
-    with get_db() as db:
-        db.execute(
-            "INSERT INTO sessions (session_id, user_id, created_at, expires_at, last_seen, is_admin) "
-            "VALUES (?, ?, ?, ?, ?, 1)",
-            (session_id, user_id, now, expires_at, now),
-        )
-
-    client.cookies.set("session", session_id)
+    _insert_user_session(client, "admin@example.com", is_admin=True)
     return client

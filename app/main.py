@@ -408,21 +408,47 @@ def get_all_positions(session=Depends(require_auth)):
     return {r["book_id"]: {"file_index": r["file_index"], "time_seconds": r["time_seconds"]} for r in rows}
 
 
-@app.get("/api/listening-sessions/{book_id}")
-def get_listening_sessions(book_id: str, session=Depends(require_auth)):
-    user_id = session.get("user_id")
-    if not user_id:
-        return []
-    with get_db() as db:
-        rows = db.execute(
-            "SELECT at, pos_seconds, file_index FROM listening_heartbeats WHERE user_id = ? AND book_id = ? ORDER BY at",
-            (user_id, book_id),
-        ).fetchall()
+def aggregate_listening_sessions(rows):
+    """Aggregate raw heartbeat rows into discrete listening sessions.
+
+    Algorithm constants
+    -------------------
+    GAP = 300 seconds
+        A wall-clock silence longer than this is treated as the end of one
+        listening session and the start of a new one.  Five minutes was chosen
+        because it is long enough to cover typical pauses (bathroom break,
+        phone call) while still splitting genuinely separate sittings.
+
+    HEARTBEAT_CREDIT = 5 seconds
+        Each heartbeat represents *up to* the heartbeat interval of audio
+        played, but the client only fires the heartbeat after the interval has
+        elapsed.  The last heartbeat in a session therefore under-counts by up
+        to one interval.  Five seconds is added to the accumulated duration
+        whenever a session is closed (gap detected or end of data) to
+        compensate for that final, unrecorded interval.
+
+    Minimum threshold = 30 seconds
+        Sessions shorter than 30 seconds after crediting are discarded as
+        noise (accidental taps, seek scrubs, etc.).
+
+    Parameters
+    ----------
+    rows : list[sqlite3.Row | dict]
+        Heartbeat records with keys ``at`` (Unix timestamp), ``pos_seconds``
+        (audio position), and ``file_index``, ordered by ``at`` ascending.
+
+    Returns
+    -------
+    list[dict]
+        Up to 100 sessions, newest first.  Each dict has keys
+        ``started_at``, ``duration_seconds``, ``max_file_index``,
+        ``max_pos_seconds``.
+    """
     if not rows:
         return []
 
-    GAP = 300  # seconds wall-clock — gap larger than this starts a new session
-    HEARTBEAT_CREDIT = 5  # audio-seconds credit for the last heartbeat in a session
+    GAP = 300
+    HEARTBEAT_CREDIT = 5
 
     sessions = []
     seg_start = rows[0]["at"]
@@ -432,6 +458,18 @@ def get_listening_sessions(book_id: str, session=Depends(require_auth)):
     seg_duration = 0.0
     seg_max_pos = rows[0]["pos_seconds"]
     seg_max_file = rows[0]["file_index"]
+
+    def flush_session():
+        nonlocal seg_duration
+        seg_duration += HEARTBEAT_CREDIT
+        if seg_duration >= 30:
+            sessions.append({
+                "started_at": seg_start,
+                "duration_seconds": int(seg_duration),
+                "max_file_index": seg_max_file,
+                "max_pos_seconds": seg_max_pos,
+            })
+
     for row in rows[1:]:
         wall_clock_gap = row["at"] - prev_at
         if wall_clock_gap > GAP:
@@ -442,9 +480,7 @@ def get_listening_sessions(book_id: str, session=Depends(require_auth)):
                     seg_duration += delta
                     if (row["file_index"], row["pos_seconds"]) > (seg_max_file, seg_max_pos):
                         seg_max_file, seg_max_pos = row["file_index"], row["pos_seconds"]
-            seg_duration += HEARTBEAT_CREDIT
-            if seg_duration >= 30:
-                sessions.append({"started_at": seg_start, "duration_seconds": int(seg_duration), "max_file_index": seg_max_file, "max_pos_seconds": seg_max_pos})
+            flush_session()
             seg_start = row["at"]
             seg_duration = 0.0
             seg_max_pos = row["pos_seconds"]
@@ -462,13 +498,25 @@ def get_listening_sessions(book_id: str, session=Depends(require_auth)):
         prev_at = row["at"]
         prev_pos = row["pos_seconds"]
         prev_file = row["file_index"]
+
     # close final session
-    seg_duration += HEARTBEAT_CREDIT
-    if seg_duration >= 30:
-        sessions.append({"started_at": seg_start, "duration_seconds": int(seg_duration), "max_file_index": seg_max_file, "max_pos_seconds": seg_max_pos})
+    flush_session()
 
     sessions.sort(key=lambda s: s["started_at"], reverse=True)
     return sessions[-100:]
+
+
+@app.get("/api/listening-sessions/{book_id}")
+def get_listening_sessions(book_id: str, session=Depends(require_auth)):
+    user_id = session.get("user_id")
+    if not user_id:
+        return []
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT at, pos_seconds, file_index FROM listening_heartbeats WHERE user_id = ? AND book_id = ? ORDER BY at",
+            (user_id, book_id),
+        ).fetchall()
+    return aggregate_listening_sessions(rows)
 
 
 # ---------------------------------------------------------------------------

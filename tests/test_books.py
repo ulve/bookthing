@@ -5,6 +5,51 @@ import pytest
 import app.books as books_module
 
 
+SORT_METADATA = {
+    "books": {
+        "sort_book_a": {
+            "book_id": "sort_book_a",
+            "title": "Alpha Book",
+            "author": "Zebra Author",
+            "series": "Series One",
+            "number_in_series": 1,
+            "tags": [],
+            "files": [],
+            "date_added": "2024-01-01",
+        },
+        "sort_book_b": {
+            "book_id": "sort_book_b",
+            "title": "Beta Book",
+            "author": "Mango Author",
+            "series": "Series One",
+            "number_in_series": 2,
+            "tags": [],
+            "files": [],
+            "date_added": "2024-06-01",
+        },
+        "sort_book_c": {
+            "book_id": "sort_book_c",
+            "title": "Gamma Book",
+            "author": "Apple Author",
+            "series": None,
+            "tags": [],
+            "files": [],
+            "date_added": "2024-12-01",
+        },
+    }
+}
+
+
+@pytest.fixture
+def sort_metadata(tmp_path, monkeypatch):
+    meta_file = tmp_path / "metadata.json"
+    meta_file.write_text(json.dumps(SORT_METADATA))
+    monkeypatch.setattr("app.books.METADATA_PATH", meta_file)
+    monkeypatch.setattr("app.books.AUDIOBOOKS_PATH", tmp_path / "audiobooks")
+    monkeypatch.setattr("app.books.COVERS_DIR", tmp_path / "covers")
+    return meta_file
+
+
 class TestGetBookList:
     def test_returns_visible_books(self, temp_metadata):
         result = books_module.get_book_list()
@@ -204,3 +249,32 @@ class TestDeleteBook:
     def test_missing_book_returns_false(self, temp_metadata):
         ok = books_module.delete_book("nonexistent")
         assert ok is False
+
+
+class TestSortOrder:
+    def test_sort_newest_returns_most_recent_first(self, sort_metadata):
+        result = books_module.get_book_list(sort="newest")
+        dates = [b["date_added"] for b in result]
+        assert dates == sorted(dates, reverse=True)
+
+    def test_sort_oldest_returns_earliest_first(self, sort_metadata):
+        result = books_module.get_book_list(sort="oldest")
+        dates = [b["date_added"] for b in result]
+        assert dates == sorted(dates)
+
+    def test_sort_title_returns_alphabetical(self, sort_metadata):
+        result = books_module.get_book_list(sort="title")
+        titles = [b["title"] for b in result]
+        assert titles == sorted(titles)
+
+    def test_sort_author_returns_alphabetical_by_author(self, sort_metadata):
+        result = books_module.get_book_list(sort="author")
+        authors = [b["author"] for b in result]
+        assert authors == sorted(authors)
+
+    def test_sort_series_groups_series_books_first(self, sort_metadata):
+        result = books_module.get_book_list(sort="series")
+        ids = [b["book_id"] for b in result]
+        # sort_book_c has no series — it should come after the series books
+        assert ids.index("sort_book_c") > ids.index("sort_book_a")
+        assert ids.index("sort_book_c") > ids.index("sort_book_b")

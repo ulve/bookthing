@@ -169,48 +169,38 @@ def walk_for_books(path: Path, books: list, root: Path, depth: int = 0):
     try:
         entries = list(path.iterdir())
     except PermissionError:
+        # Unreadable directory — skip silently
         return
 
     audio_here = sorted([f for f in entries if is_audio(f)])
     dirs_here = sorted([d for d in entries if d.is_dir()])
 
     if depth == 0:
-        # At the root: loose audio files each become their own book
+        # Root level: loose audio files each become their own single-file book
         for f in audio_here:
             books.append(BookCandidate(path, [f], "single"))
         for d in dirs_here:
             walk_for_books(d, books, root, depth + 1)
         return
 
-    if audio_here and not dirs_here:
-        # Leaf folder: all audio files = one book
+    if not audio_here and not dirs_here:
+        # Empty folder — nothing to discover
+        return
+
+    if is_disc_pattern(path):
+        # Disc/part sub-folder pattern: collect all audio across disc dirs as one book
+        all_files = audio_here + collect_disc_files(path)
+        all_files = sorted(all_files, key=lambda f: (f.parent.name, f.name))
+        books.append(BookCandidate(path, all_files, "disc"))
+        return
+
+    if audio_here:
+        # Audio at this level: treat these files as their own flat book
         books.append(BookCandidate(path, audio_here, "flat"))
-        return
 
-    if audio_here and dirs_here:
-        if is_disc_pattern(path):
-            # Mixed disc pattern (audio at root level + disc subdirs)
-            all_files = audio_here + collect_disc_files(path)
-            all_files = sorted(all_files, key=lambda f: (f.parent.name, f.name))
-            books.append(BookCandidate(path, all_files, "disc"))
-        else:
-            # Loose audio files at this level = their own flat book
-            books.append(BookCandidate(path, audio_here, "flat"))
-            for d in dirs_here:
-                walk_for_books(d, books, root, depth + 1)
-        return
-
-    if not audio_here and dirs_here:
-        if is_disc_pattern(path):
-            # Pure disc pattern
-            all_files = collect_disc_files(path)
-            books.append(BookCandidate(path, all_files, "disc"))
-        else:
-            for d in dirs_here:
-                walk_for_books(d, books, root, depth + 1)
-        return
-
-    # Empty folder — skip
+    # Recurse into any subdirectories not claimed by a disc pattern
+    for d in dirs_here:
+        walk_for_books(d, books, root, depth + 1)
 
 
 def scan_library(root: Path) -> list[BookCandidate]:

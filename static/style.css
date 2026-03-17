@@ -4,6 +4,15 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 .hidden { display: none !important; }
 
+/*
+ * Canonical breakpoints (CSS custom properties cannot be used inside @media,
+ * so these are documented here for reference only — do not change @media queries
+ * without updating this comment):
+ *   560px  — book detail header stacks to single column
+ *   600px  — player bar reflows to two-row grid
+ *   680px  — admin row collapses to two-column grid
+ *   700px  — library sidebar collapses / filter toggle appears
+ */
 :root {
   --bg: #0f0f0f;
   --bg2: #1a1a1a;
@@ -16,6 +25,17 @@
   --danger: #c0392b;
   --radius: 6px;
   --player-h: 72px;
+
+  /* Accent colour transparency variants */
+  --accent-bg-strong: rgba(201, 168, 76, 0.18);
+  --accent-bg-mid:    rgba(201, 168, 76, 0.10);
+  --accent-bg-subtle: rgba(201, 168, 76, 0.04);
+
+  /* Transition durations */
+  --transition-fast:   0.1s;
+  --transition-medium: 0.12s;
+  --transition-normal: 0.15s;
+  --transition-slow:   0.3s;
 }
 
 html { font-size: 15px; }
@@ -126,7 +146,7 @@ input:focus, select:focus {
   border: 1px solid var(--border);
   background: var(--bg3);
   color: var(--text);
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--transition-normal), border-color var(--transition-normal);
 }
 .btn:hover { background: var(--bg2); border-color: var(--accent-dim); }
 .btn-accent { background: var(--accent); border-color: var(--accent); color: #000; }
@@ -210,7 +230,7 @@ input:focus, select:focus {
   color: var(--text-muted);
   cursor: pointer;
   user-select: none;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .filter-tag-chip:hover {
@@ -219,7 +239,7 @@ input:focus, select:focus {
 }
 
 .filter-tag-chip.active {
-  background: rgba(201,168,76,0.18);
+  background: var(--accent-bg-strong);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -247,7 +267,7 @@ input:focus, select:focus {
   border-radius: var(--radius);
   overflow: hidden;
   cursor: pointer;
-  transition: border-color 0.15s, transform 0.1s;
+  transition: border-color var(--transition-normal), transform var(--transition-fast);
   display: flex;
   flex-direction: column;
 }
@@ -264,7 +284,7 @@ input:focus, select:focus {
 .book-progress-fill {
   height: 100%;
   background: var(--accent);
-  transition: width 0.3s;
+  transition: width var(--transition-slow);
 }
 
 .book-cover-container {
@@ -300,7 +320,7 @@ input:focus, select:focus {
   cursor: pointer;
   color: var(--text-muted);
   user-select: none;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .status-chip:hover {
@@ -309,7 +329,7 @@ input:focus, select:focus {
 }
 
 .status-chip.active {
-  background: rgba(201,168,76,0.18);
+  background: var(--accent-bg-strong);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -371,7 +391,7 @@ input:focus, select:focus {
   margin-top: 0.3rem;
   font-size: 0.7rem;
   color: var(--accent);
-  background: rgba(201,168,76,0.12);
+  background: var(--accent-bg-mid);
   padding: 0.1rem 0.4rem;
   border-radius: 3px;
   white-space: nowrap;
@@ -655,7 +675,7 @@ input:focus, select:focus {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background var(--transition-fast);
   font-size: 0.85rem;
 }
 .chapter-item:last-child,
@@ -663,7 +683,7 @@ input:focus, select:focus {
 .chapter-item:hover,
 .track-item:hover { background: var(--bg3); }
 .chapter-item.active,
-.track-item.active { background: rgba(201,168,76,0.1); color: var(--accent); }
+.track-item.active { background: var(--accent-bg-mid); color: var(--accent); }
 
 .track-num {
   color: var(--text-muted);
@@ -766,7 +786,7 @@ input:focus, select:focus {
   border-radius: 50%;
   font-size: 0.85rem;
   color: var(--text-muted);
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--transition-medium), color var(--transition-medium);
 }
 .icon-btn:hover { background: var(--bg3); color: var(--text); }
 .play-btn {
@@ -999,7 +1019,7 @@ input:focus, select:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.75rem 1rem;
-  transition: border-color 0.15s;
+  transition: border-color var(--transition-normal);
 }
 
 .admin-row:hover { border-color: var(--accent-dim); }
@@ -1007,7 +1027,7 @@ input:focus, select:focus {
 .admin-row-hidden { opacity: 0.45; border-left: 3px solid #444; }
 .admin-row-dirty {
   border-left: 3px solid var(--accent);
-  background: rgba(201,168,76,0.04);
+  background: var(--accent-bg-subtle);
 }
 
 /* Cover thumbnail + upload button */
@@ -1057,7 +1077,7 @@ input:focus, select:focus {
   cursor: pointer;
   font-size: 0.9rem;
   color: var(--text-muted);
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--transition-medium), color var(--transition-medium);
 }
 .admin-upload-btn:hover { background: var(--bg2); color: var(--accent); border-color: var(--accent-dim); }
 
@@ -1073,7 +1093,7 @@ input:focus, select:focus {
   cursor: pointer;
   font-size: 1rem;
   color: var(--text-muted);
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--transition-medium), color var(--transition-medium);
 }
 .admin-delete-btn:hover { background: var(--bg2); color: #e05555; border-color: #e05555; }
 
@@ -1166,7 +1186,7 @@ input:focus, select:focus {
   white-space: nowrap;
 }
 .tag-dd-item:hover {
-  background: rgba(201,168,76,0.15);
+  background: var(--accent-bg-mid);
   color: var(--accent);
 }
 
@@ -1330,10 +1350,10 @@ input:focus, select:focus {
   padding: 0.6rem 0.8rem;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background var(--transition-fast);
 }
 .fetch-candidate:last-child { border-bottom: none; }
-.fetch-candidate:hover { background: rgba(201,168,76,0.08); }
+.fetch-candidate:hover { background: var(--accent-bg-subtle); }
 
 .fetch-candidate-title {
   font-size: 0.82rem;

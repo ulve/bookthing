@@ -3,6 +3,22 @@
 
 import { fmt } from "./player.js";
 
+const COMPLETED_PCT = 99;
+
+const STATUS = {
+  LISTENING:   "listening",
+  UNLISTENED:  "unlistened",
+  COMPLETED:   "completed",
+};
+
+const SORT = {
+  NEWEST: "newest",
+  OLDEST: "oldest",
+  SERIES: "series",
+  AUTHOR: "author",
+  TITLE:  "title",
+};
+
 const app = document.getElementById("app");
 
 // ── Client-side logging ─────────────────────────────────────────────
@@ -75,7 +91,7 @@ function route() {
 
 // ── Library state ──────────────────────────────────────────────────
 
-let filterState = { search: "", author: "", series: "", tags: [], status: "", sort: "newest" };
+let filterState = { search: "", author: "", series: "", tags: [], status: "", sort: SORT.NEWEST };
 let metaCache = { authors: null, series: null, tags: null };
 let savedLibraryScroll = 0;
 
@@ -253,7 +269,7 @@ function buildBookCards(books, positions) {
     ? books.map(b => {
         const pos = positions[b.book_id];
         const pct = calcPct(pos, b);
-        const done = pct >= 99;
+        const done = pct >= COMPLETED_PCT;
         const progressBar = pos
           ? `<div class="book-progress"><div class="book-progress-fill" style="width:${pct}%"></div></div>`
           : "";
@@ -293,12 +309,12 @@ async function refreshLibraryView(session) {
     ]);
   } catch (_) { return; }
 
-  if (filterState.status === "listening") {
-    books = books.filter(b => { const p = calcPct(positions[b.book_id], b); return p > 0 && p < 99; });
-  } else if (filterState.status === "unlistened") {
+  if (filterState.status === STATUS.LISTENING) {
+    books = books.filter(b => { const p = calcPct(positions[b.book_id], b); return p > 0 && p < COMPLETED_PCT; });
+  } else if (filterState.status === STATUS.UNLISTENED) {
     books = books.filter(b => !positions[b.book_id] || calcPct(positions[b.book_id], b) === 0);
-  } else if (filterState.status === "completed") {
-    books = books.filter(b => calcPct(positions[b.book_id], b) >= 99);
+  } else if (filterState.status === STATUS.COMPLETED) {
+    books = books.filter(b => calcPct(positions[b.book_id], b) >= COMPLETED_PCT);
   }
 
   // If the layout is already mounted, only update the book grid to preserve focus
@@ -349,9 +365,9 @@ async function refreshLibraryView(session) {
           <label>Status</label>
           <div class="filter-status-chips">
             <span class="status-chip${filterState.status === "" ? " active" : ""}" data-status="">All</span>
-            <span class="status-chip${filterState.status === "listening" ? " active" : ""}" data-status="listening">Listening</span>
-            <span class="status-chip${filterState.status === "unlistened" ? " active" : ""}" data-status="unlistened">Unlistened</span>
-            <span class="status-chip${filterState.status === "completed" ? " active" : ""}" data-status="completed">Completed</span>
+            <span class="status-chip${filterState.status === STATUS.LISTENING ? " active" : ""}" data-status="${STATUS.LISTENING}">Listening</span>
+            <span class="status-chip${filterState.status === STATUS.UNLISTENED ? " active" : ""}" data-status="${STATUS.UNLISTENED}">Unlistened</span>
+            <span class="status-chip${filterState.status === STATUS.COMPLETED ? " active" : ""}" data-status="${STATUS.COMPLETED}">Completed</span>
           </div>
         </div>
         <div class="filter-group">
@@ -361,11 +377,11 @@ async function refreshLibraryView(session) {
         <div class="filter-group">
           <label for="sort-select">Sort</label>
           <select id="sort-select">
-            <option value="newest" ${filterState.sort === "newest" ? "selected" : ""}>Newest first</option>
-            <option value="oldest" ${filterState.sort === "oldest" ? "selected" : ""}>Oldest first</option>
-            <option value="series" ${filterState.sort === "series" ? "selected" : ""}>Series</option>
-            <option value="author" ${filterState.sort === "author" ? "selected" : ""}>Author</option>
-            <option value="title" ${filterState.sort === "title" ? "selected" : ""}>Title</option>
+            <option value="${SORT.NEWEST}" ${filterState.sort === SORT.NEWEST ? "selected" : ""}>Newest first</option>
+            <option value="${SORT.OLDEST}" ${filterState.sort === SORT.OLDEST ? "selected" : ""}>Oldest first</option>
+            <option value="${SORT.SERIES}" ${filterState.sort === SORT.SERIES ? "selected" : ""}>Series</option>
+            <option value="${SORT.AUTHOR}" ${filterState.sort === SORT.AUTHOR ? "selected" : ""}>Author</option>
+            <option value="${SORT.TITLE}" ${filterState.sort === SORT.TITLE ? "selected" : ""}>Title</option>
           </select>
         </div>
         <button class="btn btn-clear" id="clear-filters">Clear filters</button>
@@ -429,11 +445,11 @@ async function refreshLibraryView(session) {
   });
 
   document.getElementById("clear-filters").addEventListener("click", () => {
-    filterState = { search: "", author: "", series: "", tags: [], status: "", sort: "newest" };
+    filterState = { search: "", author: "", series: "", tags: [], status: "", sort: SORT.NEWEST };
     document.getElementById("search-input").value = "";
     document.getElementById("author-select").value = "";
     document.getElementById("series-select").value = "";
-    document.getElementById("sort-select").value = "newest";
+    document.getElementById("sort-select").value = SORT.NEWEST;
     document.querySelectorAll(".filter-tag-chip").forEach(c => c.classList.remove("active"));
     document.querySelectorAll(".status-chip").forEach(c => c.classList.toggle("active", c.dataset.status === ""));
     refreshLibraryView(session);
@@ -555,7 +571,7 @@ async function renderBookDetail(bookId) {
       const elapsed = durs.slice(0, pos.file_index).reduce((a, v) => a + v, 0) + pos.time_seconds;
       const pct = Math.min(100, Math.round((elapsed / total) * 100));
       const remaining = Math.max(0, total - elapsed);
-      const label = pct >= 99 ? "Complete" : `${pct}% · ${fmtDuration(remaining)} left`;
+      const label = pct >= COMPLETED_PCT ? "Complete" : `${pct}% · ${fmtDuration(remaining)} left`;
       progressLine = `<div class="detail-progress-line"><div class="detail-progress-bar"><div class="detail-progress-fill" style="width:${pct}%"></div></div><span class="detail-progress-label">${label}</span></div>`;
     }
   }
@@ -1130,6 +1146,7 @@ async function renderAdmin() {
     btn.textContent = "Run Scan";
   });
 
+  function wireBulkPanel() {
   // ── Bulk toggle ───────────────────────────────────────────────────
   document.getElementById("bulk-toggle").addEventListener("click", () => {
     const bulk = document.getElementById("admin-bulk");
@@ -1223,7 +1240,10 @@ async function renderAdmin() {
   const bulkTagsInput = document.getElementById("bulk-tags");
   bulkTagsInput.addEventListener("input",  () => showTagAutocomplete(bulkTagsInput, allTags));
   bulkTagsInput.addEventListener("focus",  () => showTagAutocomplete(bulkTagsInput, allTags));
+  }
+  wireBulkPanel();
 
+  function wireTagTools() {
   // ── Tag Tools ─────────────────────────────────────────────────────
   document.getElementById("tag-apply").addEventListener("click", async () => {
     const oldTag = document.getElementById("tag-old").value.trim();
@@ -1275,6 +1295,8 @@ async function renderAdmin() {
       setTimeout(() => { status.textContent = ""; }, 4000);
     }
   });
+  }
+  wireTagTools();
 
   // ── Missing-metadata filter chips ─────────────────────────────────
   function refreshAdminList() {
