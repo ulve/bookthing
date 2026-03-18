@@ -160,8 +160,8 @@ function loadTrack(index, seekTo = 0, autoplay = true) {
   if (index < 0 || index >= files.length) return;
   state.trackIndex = index;
   audio.src = `/api/stream/${state.book.book_id}/${index}`;
-  audio.currentTime = 0;
-  audio.load();
+  // Preserve playback speed — setting src resets playbackRate in some browsers
+  audio.playbackRate = parseFloat(speedSelect.value);
   if (seekTo > 0) {
     const onCanPlay = () => {
       audio.currentTime = seekTo;
