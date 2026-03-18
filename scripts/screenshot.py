@@ -528,7 +528,7 @@ def main():
                 mob.goto(f"{base_url}/")
                 mob.wait_for_selector(".book-card", timeout=10000)
                 mob.wait_for_selector("#player-bar:not(.hidden)", timeout=5000)
-                mob.screenshot(path=str(OUTPUT_DIR / "library-mobile-player.png"), full_page=True)
+                mob.screenshot(path=str(OUTPUT_DIR / "library-mobile-player.png"))
                 print(f"  Saved {OUTPUT_DIR / 'library-mobile-player.png'}")
 
                 print("Capturing shelves-mobile.png ...")
