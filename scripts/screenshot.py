@@ -254,6 +254,29 @@ def seed_db(db_path: Path, user_id: str, session_id: str):
         (user_id, ONGOING_ID, now),
     )
 
+    # Seed bookshelves
+    SHELF_SCIFI = "a1b2c3d4e5f6"
+    SHELF_FANTASY = "f6e5d4c3b2a1"
+    now2 = int(time.time())
+    conn.execute(
+        "INSERT INTO bookshelves (shelf_id, user_id, name, created_at) VALUES (?, ?, ?, ?)",
+        (SHELF_SCIFI, user_id, "Sci-Fi Favourites", now2),
+    )
+    conn.execute(
+        "INSERT INTO bookshelves (shelf_id, user_id, name, created_at) VALUES (?, ?, ?, ?)",
+        (SHELF_FANTASY, user_id, "Epic Fantasy", now2),
+    )
+    for book_id in (FEATURED_ID, "3c3984234200", "36f086af7c71", "871514dd415b"):
+        conn.execute(
+            "INSERT INTO bookshelf_books (shelf_id, book_id, added_at) VALUES (?, ?, ?)",
+            (SHELF_SCIFI, book_id, now2),
+        )
+    for book_id in ("6af96c9ee785", "32a3ce7b7f2c", "fec10baa2223", "9e931f447093"):
+        conn.execute(
+            "INSERT INTO bookshelf_books (shelf_id, book_id, added_at) VALUES (?, ?, ?)",
+            (SHELF_FANTASY, book_id, now2),
+        )
+
     conn.commit()
     conn.close()
 
@@ -374,6 +397,20 @@ def main():
                 page.screenshot(path=str(OUTPUT_DIR / "library.png"), full_page=True)
                 print(f"  Saved {OUTPUT_DIR / 'library.png'}")
                 print(f"  Saved {OUTPUT_DIR / 'player.png'}")
+
+                # --- shelves.png ---
+                print("Capturing shelves.png ...")
+                page.goto(f"{base_url}/shelves")
+                page.wait_for_selector(".shelf-card", timeout=10000)
+                page.screenshot(path=str(OUTPUT_DIR / "shelves.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'shelves.png'}")
+
+                # --- shelf-detail.png ---
+                print("Capturing shelf-detail.png ...")
+                page.goto(f"{base_url}/shelves/a1b2c3d4e5f6")
+                page.wait_for_selector(".book-card", timeout=10000)
+                page.screenshot(path=str(OUTPUT_DIR / "shelf-detail.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'shelf-detail.png'}")
 
                 browser.close()
 

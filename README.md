@@ -32,6 +32,16 @@ Each book page shows the cover, series position, tags, total duration, date adde
 
 The persistent player bar shows the cover thumbnail, title, and current track. Controls: skip back, play/pause, skip forward, a scrubable progress bar with elapsed time, time remaining, and a playback speed selector.
 
+**Bookshelves**
+
+![Shelves](docs/screenshots/shelves.png)
+
+Organise books into named personal collections. Create as many shelves as you like — a book can live on multiple shelves at once. The Shelves page shows each collection as a card with a book count; click a card to browse its contents.
+
+![Shelf detail](docs/screenshots/shelf-detail.png)
+
+Each shelf shows its books as a grid. Hover a card to reveal a remove button. On any book detail page, click **+ Shelf** to open a picker that lets you add or remove the book from any of your shelves, or create a new shelf on the spot.
+
 **Login**
 
 ![Login](docs/screenshots/login.png)

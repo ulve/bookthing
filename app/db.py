@@ -57,6 +57,20 @@ CREATE TABLE IF NOT EXISTS listening_heartbeats (
 );
 CREATE INDEX IF NOT EXISTS idx_listening_heartbeats_user_book
     ON listening_heartbeats (user_id, book_id, at);
+
+CREATE TABLE IF NOT EXISTS bookshelves (
+    shelf_id   TEXT    PRIMARY KEY,
+    user_id    TEXT    NOT NULL REFERENCES users(user_id),
+    name       TEXT    NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS bookshelf_books (
+    shelf_id TEXT NOT NULL REFERENCES bookshelves(shelf_id) ON DELETE CASCADE,
+    book_id  TEXT NOT NULL,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (shelf_id, book_id)
+);
 """
 
 
