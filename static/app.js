@@ -897,12 +897,15 @@ async function renderShelves() {
   }
 
   app.innerHTML = `
-    ${headerHtml(session)}
-    <div class="page-content">
-      <div class="shelves-header">
-        <button class="btn" id="back-to-library">&#8592; Library</button>
-        <h1>My Bookshelves</h1>
+    <div class="site-header">
+      <div class="site-brand" id="nav-home">
+        <img src="/icon-nav.svg" alt="" class="site-icon">
+        <span class="site-name">bookthing</span>
       </div>
+      <span style="color:var(--accent);font-size:0.85rem;font-weight:600;">Shelves</span>
+      <button class="btn" id="back-to-library">&#8592; Library</button>
+    </div>
+    <div class="page-content">
       <div class="shelf-grid" id="shelf-grid">${shelvesHtml(shelves)}</div>
       <div class="shelf-new-row" id="shelf-create-row">
         <input id="shelf-create-name" class="shelf-new-input" placeholder="New shelf name…">
@@ -910,7 +913,7 @@ async function renderShelves() {
       </div>
     </div>`;
 
-  wireHeaderEvents();
+  document.getElementById("nav-home").addEventListener("click", () => navigate("/"));
   document.getElementById("back-to-library").addEventListener("click", () => navigate("/"));
 
   function wireShelfGrid() {
@@ -971,18 +974,21 @@ async function renderShelfDetail(shelfId) {
   const shelfName = books._shelfName || "";
 
   app.innerHTML = `
-    ${headerHtml(session)}
-    <div class="page-content">
-      <div class="shelves-header">
-        <button class="btn" id="back-to-shelves">&#8592; Shelves</button>
-        <h1 id="shelf-detail-title" class="shelf-detail-h1">Shelf</h1>
+    <div class="site-header">
+      <div class="site-brand" id="nav-home">
+        <img src="/icon-nav.svg" alt="" class="site-icon">
+        <span class="site-name">bookthing</span>
       </div>
+      <span id="shelf-detail-title" style="color:var(--accent);font-size:0.85rem;font-weight:600;">${esc(shelfName)}</span>
+      <button class="btn" id="back-to-shelves">&#8592; Shelves</button>
+    </div>
+    <div class="page-content">
       <div class="book-grid" id="shelf-book-grid">
         ${buildShelfBookCards(books, shelfId)}
       </div>
     </div>`;
 
-  wireHeaderEvents();
+  document.getElementById("nav-home").addEventListener("click", () => navigate("/"));
   document.getElementById("back-to-shelves").addEventListener("click", () => navigate("/shelves"));
 
   // Fetch shelf name

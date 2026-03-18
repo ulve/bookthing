@@ -1729,15 +1729,6 @@ input:focus, select:focus {
   padding: 0.2rem 0.5rem;
 }
 
-.shelves-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 1.5rem 0 1rem;
-}
-.shelves-header h1 { margin: 0; }
-
-.shelf-detail-h1 { margin: 0; }
 
 .shelf-new-row {
   display: flex;
