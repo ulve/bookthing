@@ -76,6 +76,12 @@ Each shelf shows its books as a grid. Hover a card to reveal a remove button. On
 
 No passwords. Enter your email and a one-time login link is sent to your inbox. Only addresses on the allowed list can sign in.
 
+**Mobile (iPhone 14)**
+
+| Library | Book detail | Player bar | Shelves |
+|---|---|---|---|
+| ![Library mobile](docs/screenshots/library-mobile.png) | ![Book detail mobile](docs/screenshots/book-detail-mobile.png) | ![Library with player](docs/screenshots/library-mobile-player.png) | ![Shelves mobile](docs/screenshots/shelves-mobile.png) |
+
 </details>
 
 ## Requirements
