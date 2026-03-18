@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 
 from app import books as books_module
+from app import shelves as shelves_module
 from app.auth import consume_magic_link, require_auth, require_admin, request_magic_link, get_or_create_user, send_magic_email
 from app.config import BASE_DIR, AUDIOBOOKS_PATH, COVERS_DIR, ADMIN_EMAIL, BASE_URL, SECURE_COOKIES, CLIENT_LOG_PATH, CLIENT_LOG_LEVEL
 from app.db import get_db, init_db
@@ -922,6 +923,93 @@ async def set_user_debug_logging(email: str, request: Request, _=Depends(require
 
 
 # ---------------------------------------------------------------------------
+# Bookshelves
+# ---------------------------------------------------------------------------
+
+@app.get("/api/shelves")
+def list_shelves(session=Depends(require_auth)):
+    user_id = session.get("user_id")
+    with get_db() as db:
+        return shelves_module.get_shelves(db, user_id)
+
+
+@app.post("/api/shelves")
+async def create_shelf(request: Request, session=Depends(require_auth)):
+    user_id = session.get("user_id")
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name required")
+    with get_db() as db:
+        shelf = shelves_module.create_shelf(db, user_id, name)
+    return shelf
+
+
+@app.put("/api/shelves/{shelf_id}")
+async def rename_shelf(shelf_id: str, request: Request, session=Depends(require_auth)):
+    user_id = session.get("user_id")
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name required")
+    with get_db() as db:
+        result = shelves_module.rename_shelf(db, user_id, shelf_id, name)
+    if result is None:
+        raise HTTPException(status_code=403)
+    return result
+
+
+@app.delete("/api/shelves/{shelf_id}")
+def delete_shelf(shelf_id: str, session=Depends(require_auth)):
+    user_id = session.get("user_id")
+    with get_db() as db:
+        ok = shelves_module.delete_shelf(db, user_id, shelf_id)
+    if not ok:
+        raise HTTPException(status_code=403)
+    return {"ok": True}
+
+
+@app.get("/api/shelves/{shelf_id}/books")
+def get_shelf_books(shelf_id: str, session=Depends(require_auth)):
+    user_id = session.get("user_id")
+    with get_db() as db:
+        result = shelves_module.get_shelf_books(db, user_id, shelf_id)
+    if result is None:
+        raise HTTPException(status_code=403)
+    return result
+
+
+@app.post("/api/shelves/{shelf_id}/books")
+async def add_book_to_shelf(shelf_id: str, request: Request, session=Depends(require_auth)):
+    user_id = session.get("user_id")
+    body = await request.json()
+    book_id = body.get("book_id", "")
+    with get_db() as db:
+        ok = shelves_module.add_book_to_shelf(db, user_id, shelf_id, book_id)
+    if not ok:
+        raise HTTPException(status_code=403)
+    return {"ok": True}
+
+
+@app.delete("/api/shelves/{shelf_id}/books/{book_id}")
+def remove_book_from_shelf(shelf_id: str, book_id: str, session=Depends(require_auth)):
+    user_id = session.get("user_id")
+    with get_db() as db:
+        ok = shelves_module.remove_book_from_shelf(db, user_id, shelf_id, book_id)
+    if not ok:
+        raise HTTPException(status_code=403)
+    return {"ok": True}
+
+
+@app.get("/api/books/{book_id}/shelves")
+def get_book_shelves(book_id: str, session=Depends(require_auth)):
+    user_id = session.get("user_id")
+    with get_db() as db:
+        shelf_ids = shelves_module.get_book_shelf_ids(db, user_id, book_id)
+    return shelf_ids
+
+
+# ---------------------------------------------------------------------------
 # Static files — must be last
 # ---------------------------------------------------------------------------
 
@@ -932,6 +1020,14 @@ async def spa_book(book_id: str):
 
 @app.get("/admin")
 async def spa_admin():
+    return FileResponse(static_dir / "index.html")
+
+@app.get("/shelves")
+async def spa_shelves():
+    return FileResponse(static_dir / "index.html")
+
+@app.get("/shelves/{shelf_id}")
+async def spa_shelf_detail(shelf_id: str):
     return FileResponse(static_dir / "index.html")
 
 app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")

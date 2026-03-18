@@ -83,10 +83,17 @@ function route() {
   clientLog("info", "navigate", { path });
   if (path === "/admin") {
     renderAdmin();
+  } else if (path === "/shelves") {
+    renderShelves();
   } else {
     const m = path.match(/^\/book\/([a-f0-9]+)$/);
-    if (m) renderBookDetail(m[1]);
-    else renderLibrary();
+    if (m) {
+      renderBookDetail(m[1]);
+    } else {
+      const m2 = path.match(/^\/shelves\/([a-f0-9]+)$/);
+      if (m2) renderShelfDetail(m2[1]);
+      else renderLibrary();
+    }
   }
 }
 
@@ -224,6 +231,7 @@ function headerHtml(session) {
         <img src="/icon-nav.svg" alt="" class="site-icon">
         <span class="site-name">bookthing</span>
       </div>
+      <button class="btn" id="nav-shelves">Shelves</button>
       ${adminLink}
       <form method="post" action="/auth/logout" style="margin:0">
         <button class="btn" type="submit">Sign out</button>
@@ -233,6 +241,7 @@ function headerHtml(session) {
 
 function wireHeaderEvents() {
   document.getElementById("nav-home")?.addEventListener("click", () => navigate("/"));
+  document.getElementById("nav-shelves")?.addEventListener("click", () => navigate("/shelves"));
   document.getElementById("nav-admin")?.addEventListener("click", () => navigate("/admin"));
 }
 
@@ -639,6 +648,10 @@ async function renderBookDetail(bookId) {
             <button class="btn btn-accent" id="play-btn">&#9654; Play</button>
             <a class="btn" href="/api/download/${book.book_id}" download>&#8659; Download</a>
             ${adminEditBtn}
+            <div class="shelf-picker-wrap" style="position:relative;display:inline-block">
+              <button class="btn" id="shelf-btn">+ Shelf</button>
+              <div class="shelf-picker hidden" id="shelf-picker"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -733,6 +746,226 @@ async function renderBookDetail(bookId) {
       }
     });
   });
+
+  // ── Shelf picker ──
+  const shelfBtn = document.getElementById("shelf-btn");
+  const shelfPicker = document.getElementById("shelf-picker");
+
+  async function openShelfPicker() {
+    const [shelfIds, allShelves] = await Promise.all([
+      api(`/api/books/${book.book_id}/shelves`).catch(() => []),
+      api("/api/shelves").catch(() => []),
+    ]);
+    const checkedSet = new Set(shelfIds);
+    shelfPicker.innerHTML = `
+      ${allShelves.map(s => `
+        <label class="shelf-chk-row">
+          <input type="checkbox" class="shelf-chk" data-shelf-id="${esc(s.shelf_id)}" ${checkedSet.has(s.shelf_id) ? "checked" : ""}>
+          <span>${esc(s.name)}</span>
+        </label>`).join("")}
+      <div class="shelf-new-row">
+        <input id="shelf-new-name" class="shelf-new-input" placeholder="New shelf…">
+        <button class="btn" id="shelf-new-btn">Create</button>
+      </div>`;
+    shelfPicker.classList.remove("hidden");
+
+    shelfPicker.querySelectorAll(".shelf-chk").forEach(chk => {
+      chk.addEventListener("change", async () => {
+        const sid = chk.dataset.shelfId;
+        if (chk.checked) {
+          await api(`/api/shelves/${sid}/books`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ book_id: book.book_id }) }).catch(() => {});
+        } else {
+          await api(`/api/shelves/${sid}/books/${book.book_id}`, { method: "DELETE" }).catch(() => {});
+        }
+      });
+    });
+
+    document.getElementById("shelf-new-btn").addEventListener("click", async () => {
+      const nameInput = document.getElementById("shelf-new-name");
+      const name = nameInput.value.trim();
+      if (!name) return;
+      try {
+        const shelf = await api("/api/shelves", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+        await api(`/api/shelves/${shelf.shelf_id}/books`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ book_id: book.book_id }) });
+        nameInput.value = "";
+        openShelfPicker();
+      } catch (_) {}
+    });
+  }
+
+  shelfBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    if (!shelfPicker.classList.contains("hidden")) {
+      shelfPicker.classList.add("hidden");
+    } else {
+      openShelfPicker();
+    }
+  });
+
+  document.addEventListener("click", function closeShelfPicker(e) {
+    if (!shelfPicker.contains(e.target) && e.target !== shelfBtn) {
+      shelfPicker.classList.add("hidden");
+    }
+  }, true);
+}
+
+// ── Shelves view ───────────────────────────────────────────────────
+
+async function renderShelves() {
+  app.innerHTML = `<div class="centered-msg"><span>Loading…</span></div>`;
+  const [session, shelves] = await Promise.all([
+    getSession(),
+    api("/api/shelves").catch(() => []),
+  ]);
+
+  function shelvesHtml(list) {
+    return list.map(s => `
+      <div class="shelf-card" data-shelf-id="${esc(s.shelf_id)}">
+        <div class="shelf-card-name shelf-card-click">${esc(s.name)}</div>
+        <div class="shelf-card-count">${s.book_count} book${s.book_count === 1 ? "" : "s"}</div>
+        <div class="shelf-card-actions">
+          <button class="btn shelf-rename-btn" data-shelf-id="${esc(s.shelf_id)}" data-name="${esc(s.name)}">Rename</button>
+          <button class="btn shelf-delete-btn" data-shelf-id="${esc(s.shelf_id)}" data-name="${esc(s.name)}">Delete</button>
+        </div>
+      </div>`).join("") || `<div class="empty-state"><p>No shelves yet.</p></div>`;
+  }
+
+  app.innerHTML = `
+    ${headerHtml(session)}
+    <div class="page-content">
+      <div class="shelves-header">
+        <h1>My Bookshelves</h1>
+      </div>
+      <div class="shelf-grid" id="shelf-grid">${shelvesHtml(shelves)}</div>
+      <div class="shelf-new-row" id="shelf-create-row">
+        <input id="shelf-create-name" class="shelf-new-input" placeholder="New shelf name…">
+        <button class="btn btn-accent" id="shelf-create-btn">Create</button>
+      </div>
+    </div>`;
+
+  wireHeaderEvents();
+
+  function wireShelfGrid() {
+    document.querySelectorAll(".shelf-card-click").forEach(el => {
+      el.addEventListener("click", () => navigate(`/shelves/${el.closest(".shelf-card").dataset.shelfId}`));
+    });
+
+    document.querySelectorAll(".shelf-delete-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm(`Delete shelf "${btn.dataset.name}"?`)) return;
+        await api(`/api/shelves/${btn.dataset.shelfId}`, { method: "DELETE" }).catch(() => {});
+        const updated = await api("/api/shelves").catch(() => []);
+        document.getElementById("shelf-grid").innerHTML = shelvesHtml(updated);
+        wireShelfGrid();
+      });
+    });
+
+    document.querySelectorAll(".shelf-rename-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const newName = prompt("New name:", btn.dataset.name);
+        if (!newName?.trim()) return;
+        await api(`/api/shelves/${btn.dataset.shelfId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName.trim() }) }).catch(() => {});
+        const updated = await api("/api/shelves").catch(() => []);
+        document.getElementById("shelf-grid").innerHTML = shelvesHtml(updated);
+        wireShelfGrid();
+      });
+    });
+  }
+
+  wireShelfGrid();
+
+  document.getElementById("shelf-create-btn").addEventListener("click", async () => {
+    const input = document.getElementById("shelf-create-name");
+    const name = input.value.trim();
+    if (!name) return;
+    await api("/api/shelves", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }).catch(() => {});
+    input.value = "";
+    const updated = await api("/api/shelves").catch(() => []);
+    document.getElementById("shelf-grid").innerHTML = shelvesHtml(updated);
+    wireShelfGrid();
+  });
+}
+
+async function renderShelfDetail(shelfId) {
+  app.innerHTML = `<div class="centered-msg"><span>Loading…</span></div>`;
+  const [session, books] = await Promise.all([
+    getSession(),
+    api(`/api/shelves/${shelfId}/books`).catch(() => null),
+  ]);
+
+  if (books === null) {
+    app.innerHTML = `<div class="centered-msg"><p>Shelf not found.</p></div>`;
+    return;
+  }
+
+  const shelfName = books._shelfName || "";
+
+  app.innerHTML = `
+    ${headerHtml(session)}
+    <div class="page-content">
+      <div class="shelves-header">
+        <button class="btn" id="back-to-shelves">&#8592; Shelves</button>
+        <h1 id="shelf-detail-title" class="shelf-detail-h1">Shelf</h1>
+      </div>
+      <div class="book-grid" id="shelf-book-grid">
+        ${buildShelfBookCards(books, shelfId)}
+      </div>
+    </div>`;
+
+  wireHeaderEvents();
+  document.getElementById("back-to-shelves").addEventListener("click", () => navigate("/shelves"));
+
+  // Fetch shelf name
+  api("/api/shelves").then(list => {
+    const shelf = list.find(s => s.shelf_id === shelfId);
+    if (shelf) {
+      const h1 = document.getElementById("shelf-detail-title");
+      if (h1) h1.textContent = shelf.name;
+    }
+  }).catch(() => {});
+
+  // Wire remove buttons
+  document.querySelectorAll(".shelf-remove-btn").forEach(btn => {
+    btn.addEventListener("click", async e => {
+      e.stopPropagation();
+      const bookId = btn.dataset.bookId;
+      await api(`/api/shelves/${shelfId}/books/${bookId}`, { method: "DELETE" }).catch(() => {});
+      const updated = await api(`/api/shelves/${shelfId}/books`).catch(() => []);
+      document.getElementById("shelf-book-grid").innerHTML = buildShelfBookCards(updated, shelfId);
+      document.querySelectorAll(".shelf-remove-btn").forEach(b => {
+        b.addEventListener("click", async ev => {
+          ev.stopPropagation();
+          const bid = b.dataset.bookId;
+          await api(`/api/shelves/${shelfId}/books/${bid}`, { method: "DELETE" }).catch(() => {});
+          b.closest(".book-card")?.remove();
+        });
+      });
+    });
+  });
+
+  document.querySelectorAll(".book-card[data-id]").forEach(card => {
+    card.addEventListener("click", e => {
+      if (e.target.closest(".shelf-remove-btn")) return;
+      navigate(`/book/${card.dataset.id}`);
+    });
+  });
+}
+
+function buildShelfBookCards(books, shelfId) {
+  if (!books.length) return `<div class="empty-state"><p>No books on this shelf.</p></div>`;
+  return books.map(b => `
+    <div class="book-card" data-id="${b.book_id}" style="position:relative">
+      <div class="book-cover-container">
+        ${coverHtml(b)}
+        <button class="shelf-remove-btn" data-book-id="${b.book_id}" title="Remove from shelf">&#10005;</button>
+      </div>
+      <div class="book-info">
+        <div class="book-title">${esc(b.title || "Untitled")}</div>
+        <div class="book-author">${esc(b.author || "")}</div>
+        ${seriesBadge(b)}
+        ${tagChips(b.tags)}
+      </div>
+    </div>`).join("");
 }
 
 // ── Admin view ─────────────────────────────────────────────────────
