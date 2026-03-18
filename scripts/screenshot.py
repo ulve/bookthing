@@ -490,6 +490,55 @@ def main():
                 page.screenshot(path=str(OUTPUT_DIR / "shelf-detail.png"), full_page=True)
                 print(f"  Saved {OUTPUT_DIR / 'shelf-detail.png'}")
 
+                # --- mobile screenshots (iPhone 14: 390x844, 3x DPR) ---
+                mobile_context = browser.new_context(
+                    viewport={"width": 390, "height": 844},
+                    device_scale_factor=3,
+                    is_mobile=True,
+                    has_touch=True,
+                )
+                mobile_context.add_cookies([{
+                    "name": "session",
+                    "value": session_id,
+                    "domain": "127.0.0.1",
+                    "path": "/",
+                }])
+                mob = mobile_context.new_page()
+
+                print("Capturing library-mobile.png ...")
+                mob.goto(f"{base_url}/")
+                mob.wait_for_selector(".book-card", timeout=10000)
+                mob.screenshot(path=str(OUTPUT_DIR / "library-mobile.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'library-mobile.png'}")
+
+                print("Capturing book-detail-mobile.png ...")
+                mob.goto(f"{base_url}/book/{FEATURED_ID}")
+                mob.wait_for_load_state("networkidle", timeout=10000)
+                mob.screenshot(path=str(OUTPUT_DIR / "book-detail-mobile.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'book-detail-mobile.png'}")
+
+                print("Starting mobile playback for player bar ...")
+                mob.locator("#play-btn").click()
+                try:
+                    mob.wait_for_selector("#player-bar:not(.hidden)", timeout=8000)
+                except Exception:
+                    print("  Warning: player bar did not appear")
+
+                print("Capturing library-mobile-player.png ...")
+                mob.goto(f"{base_url}/")
+                mob.wait_for_selector(".book-card", timeout=10000)
+                mob.wait_for_selector("#player-bar:not(.hidden)", timeout=5000)
+                mob.screenshot(path=str(OUTPUT_DIR / "library-mobile-player.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'library-mobile-player.png'}")
+
+                print("Capturing shelves-mobile.png ...")
+                mob.goto(f"{base_url}/shelves")
+                mob.wait_for_selector(".shelf-card", timeout=10000)
+                mob.screenshot(path=str(OUTPUT_DIR / "shelves-mobile.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'shelves-mobile.png'}")
+
+                mobile_context.close()
+
                 browser.close()
 
         finally:
