@@ -422,34 +422,47 @@ def main():
                 print(f"  Saved {OUTPUT_DIR / 'library.png'}")
                 print(f"  Saved {OUTPUT_DIR / 'player.png'}")
 
-                # --- admin-library.png ---
+                # --- admin screenshots (fresh context to avoid player bar) ---
+                admin_context = browser.new_context(
+                    viewport={"width": 1280, "height": 800},
+                )
+                admin_context.add_cookies([{
+                    "name": "session",
+                    "value": session_id,
+                    "domain": "127.0.0.1",
+                    "path": "/",
+                }])
+                admin_page = admin_context.new_page()
+
                 print("Capturing admin-library.png ...")
-                page.goto(f"{base_url}/admin")
-                page.wait_for_selector(".admin-tab-btn", timeout=10000)
-                page.wait_for_load_state("networkidle", timeout=10000)
-                page.screenshot(path=str(OUTPUT_DIR / "admin-library.png"), full_page=True)
+                admin_page.goto(f"{base_url}/admin")
+                admin_page.wait_for_selector(".admin-tab-btn", timeout=10000)
+                admin_page.wait_for_load_state("networkidle", timeout=10000)
+                admin_page.screenshot(path=str(OUTPUT_DIR / "admin-library.png"))
                 print(f"  Saved {OUTPUT_DIR / 'admin-library.png'}")
 
                 # --- admin-users.png ---
                 print("Capturing admin-users.png ...")
-                page.locator(".admin-tab-btn[data-tab='users']").click()
-                page.wait_for_load_state("networkidle", timeout=10000)
-                page.screenshot(path=str(OUTPUT_DIR / "admin-users.png"), full_page=True)
+                admin_page.locator(".admin-tab-btn[data-tab='users']").click()
+                admin_page.wait_for_load_state("networkidle", timeout=10000)
+                admin_page.screenshot(path=str(OUTPUT_DIR / "admin-users.png"))
                 print(f"  Saved {OUTPUT_DIR / 'admin-users.png'}")
 
                 # --- admin-tools.png ---
                 print("Capturing admin-tools.png ...")
-                page.locator(".admin-tab-btn[data-tab='tools']").click()
-                page.wait_for_load_state("networkidle", timeout=10000)
-                page.screenshot(path=str(OUTPUT_DIR / "admin-tools.png"), full_page=True)
+                admin_page.locator(".admin-tab-btn[data-tab='tools']").click()
+                admin_page.wait_for_load_state("networkidle", timeout=10000)
+                admin_page.screenshot(path=str(OUTPUT_DIR / "admin-tools.png"))
                 print(f"  Saved {OUTPUT_DIR / 'admin-tools.png'}")
 
                 # --- admin-requests.png ---
                 print("Capturing admin-requests.png ...")
-                page.locator(".admin-tab-btn[data-tab='requests']").click()
-                page.wait_for_load_state("networkidle", timeout=10000)
-                page.screenshot(path=str(OUTPUT_DIR / "admin-requests.png"), full_page=True)
+                admin_page.locator(".admin-tab-btn[data-tab='requests']").click()
+                admin_page.wait_for_load_state("networkidle", timeout=10000)
+                admin_page.screenshot(path=str(OUTPUT_DIR / "admin-requests.png"))
                 print(f"  Saved {OUTPUT_DIR / 'admin-requests.png'}")
+
+                admin_context.close()
 
                 # --- request-modal.png ---
                 print("Capturing request-modal.png ...")
