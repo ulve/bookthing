@@ -17,6 +17,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = REPO_ROOT / "docs" / "screenshots"
+COVER_CACHE_DIR = Path(__file__).parent / ".cover_cache"
 
 FEATURED_ID = "58a1ef4144ac"  # Dune by Frank Herbert
 _NOW = datetime.now(timezone.utc).isoformat()
@@ -162,11 +163,19 @@ def fetch_cover(title: str, author: str) -> bytes | None:
 
 
 def seed_covers(covers_dir: Path, metadata: dict) -> dict:
-    """Fetch real covers from OpenLibrary; update metadata cover fields."""
+    """Fetch real covers from OpenLibrary (cached); update metadata cover fields."""
     covers_dir.mkdir(parents=True, exist_ok=True)
+    COVER_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     for book_id, book in metadata["books"].items():
-        print(f"  Fetching cover: {book['title']} ...")
-        img = fetch_cover(book["title"], book["author"])
+        cache_path = COVER_CACHE_DIR / f"{book_id}.jpg"
+        if cache_path.exists():
+            print(f"  Cover cached: {book['title']}")
+            img = cache_path.read_bytes()
+        else:
+            print(f"  Fetching cover: {book['title']} ...")
+            img = fetch_cover(book["title"], book["author"])
+            if img:
+                cache_path.write_bytes(img)
         if img:
             filename = f"{book_id}.jpg"
             (covers_dir / filename).write_bytes(img)

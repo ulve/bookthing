@@ -19,6 +19,9 @@ bookthing.db
 # Local config (contains credentials — copy from docker-compose.example.yml)
 docker-compose.yml
 
+# Screenshot cover cache
+scripts/.cover_cache/
+
 # Misc
 hshsh.sh
 /logo.png

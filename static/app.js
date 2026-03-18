@@ -428,11 +428,11 @@ async function refreshLibraryView(session) {
 
   // Initial render — build the full layout and wire up event listeners
   const authorsOptions = (metaCache.authors || [])
-    .map(a => `<option value="${esc(a)}" ${filterState.author === a ? "selected" : ""}>${esc(a)}</option>`)
+    .map(a => `<option value="${esc(a)}">`)
     .join("");
 
   const seriesOptions = (metaCache.series || [])
-    .map(s => `<option value="${esc(s)}" ${filterState.series === s ? "selected" : ""}>${esc(s)}</option>`)
+    .map(s => `<option value="${esc(s)}">`)
     .join("");
 
   const tagChipsFilter = (metaCache.tags || [])
@@ -451,17 +451,13 @@ async function refreshLibraryView(session) {
         </div>
         <div class="filter-group">
           <label for="author-select">Author</label>
-          <select id="author-select">
-            <option value="">All authors</option>
-            ${authorsOptions}
-          </select>
+          <input type="text" id="author-select" list="author-list" placeholder="All authors" value="${esc(filterState.author)}" autocomplete="off">
+          <datalist id="author-list">${authorsOptions}</datalist>
         </div>
         <div class="filter-group">
           <label for="series-select">Series</label>
-          <select id="series-select">
-            <option value="">All series</option>
-            ${seriesOptions}
-          </select>
+          <input type="text" id="series-select" list="series-list" placeholder="All series" value="${esc(filterState.series)}" autocomplete="off">
+          <datalist id="series-list">${seriesOptions}</datalist>
         </div>
         <div class="filter-group">
           <label>Status</label>
@@ -510,13 +506,41 @@ async function refreshLibraryView(session) {
     searchDebounce = setTimeout(() => refreshLibraryView(session), 300);
   });
 
-  document.getElementById("author-select").addEventListener("change", e => {
-    filterState.author = e.target.value;
+  const authorInput = document.getElementById("author-select");
+  authorInput.addEventListener("input", e => {
+    const val = e.target.value;
+    if (val === "" || (metaCache.authors || []).includes(val)) {
+      filterState.author = val;
+      refreshLibraryView(session);
+    }
+  });
+  authorInput.addEventListener("change", e => {
+    const val = e.target.value;
+    if ((metaCache.authors || []).includes(val)) {
+      filterState.author = val;
+    } else {
+      filterState.author = "";
+      e.target.value = "";
+    }
     refreshLibraryView(session);
   });
 
-  document.getElementById("series-select").addEventListener("change", e => {
-    filterState.series = e.target.value;
+  const seriesInput = document.getElementById("series-select");
+  seriesInput.addEventListener("input", e => {
+    const val = e.target.value;
+    if (val === "" || (metaCache.series || []).includes(val)) {
+      filterState.series = val;
+      refreshLibraryView(session);
+    }
+  });
+  seriesInput.addEventListener("change", e => {
+    const val = e.target.value;
+    if ((metaCache.series || []).includes(val)) {
+      filterState.series = val;
+    } else {
+      filterState.series = "";
+      e.target.value = "";
+    }
     refreshLibraryView(session);
   });
 
