@@ -885,8 +885,10 @@ async function renderShelves() {
   function shelvesHtml(list) {
     return list.map(s => `
       <div class="shelf-card" data-shelf-id="${esc(s.shelf_id)}">
-        <div class="shelf-card-name shelf-card-click">${esc(s.name)}</div>
-        <div class="shelf-card-count">${s.book_count} book${s.book_count === 1 ? "" : "s"}</div>
+        <div class="shelf-card-body">
+          <div class="shelf-card-name">${esc(s.name)}</div>
+          <div class="shelf-card-count">${s.book_count} book${s.book_count === 1 ? "" : "s"}</div>
+        </div>
         <div class="shelf-card-actions">
           <button class="btn shelf-rename-btn" data-shelf-id="${esc(s.shelf_id)}" data-name="${esc(s.name)}">Rename</button>
           <button class="btn shelf-delete-btn" data-shelf-id="${esc(s.shelf_id)}" data-name="${esc(s.name)}">Delete</button>
@@ -898,6 +900,7 @@ async function renderShelves() {
     ${headerHtml(session)}
     <div class="page-content">
       <div class="shelves-header">
+        <button class="btn" id="back-to-library">&#8592; Library</button>
         <h1>My Bookshelves</h1>
       </div>
       <div class="shelf-grid" id="shelf-grid">${shelvesHtml(shelves)}</div>
@@ -908,14 +911,16 @@ async function renderShelves() {
     </div>`;
 
   wireHeaderEvents();
+  document.getElementById("back-to-library").addEventListener("click", () => navigate("/"));
 
   function wireShelfGrid() {
-    document.querySelectorAll(".shelf-card-click").forEach(el => {
-      el.addEventListener("click", () => navigate(`/shelves/${el.closest(".shelf-card").dataset.shelfId}`));
+    document.querySelectorAll(".shelf-card").forEach(card => {
+      card.addEventListener("click", () => navigate(`/shelves/${card.dataset.shelfId}`));
     });
 
     document.querySelectorAll(".shelf-delete-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
         if (!confirm(`Delete shelf "${btn.dataset.name}"?`)) return;
         await api(`/api/shelves/${btn.dataset.shelfId}`, { method: "DELETE" }).catch(() => {});
         const updated = await api("/api/shelves").catch(() => []);
@@ -925,7 +930,8 @@ async function renderShelves() {
     });
 
     document.querySelectorAll(".shelf-rename-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
         const newName = prompt("New name:", btn.dataset.name);
         if (!newName?.trim()) return;
         await api(`/api/shelves/${btn.dataset.shelfId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName.trim() }) }).catch(() => {});
