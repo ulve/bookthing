@@ -32,6 +32,24 @@ Each book page shows the cover, series position, tags, total duration, date adde
 
 The persistent player bar shows the cover thumbnail, title, and current track. Controls: skip back, play/pause, skip forward, a scrubable progress bar with elapsed time, time remaining, and a playback speed selector.
 
+**Admin — Library**
+
+![Admin library](docs/screenshots/admin-library.png)
+
+The Library tab lists all books with inline editing. Edit title, author, series, tags, and description directly in the table. Filter by missing metadata (no cover, no author, no description, no series) or by missing files. Bulk-edit tags or series across multiple books at once. Fetch descriptions from Google Books, upload covers, hide books, or delete stale entries.
+
+**Admin — Users & Access**
+
+![Admin users](docs/screenshots/admin-users.png)
+
+Manage the allowed-email list and send login links directly from the UI. Toggle admin privileges per user.
+
+**Admin — Tools**
+
+![Admin tools](docs/screenshots/admin-tools.png)
+
+Trigger a library scan without shelling into the container, reset book dates, and view the listening activity log.
+
 **Bookshelves**
 
 ![Shelves](docs/screenshots/shelves.png)

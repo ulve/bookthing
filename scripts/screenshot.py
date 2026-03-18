@@ -398,6 +398,28 @@ def main():
                 print(f"  Saved {OUTPUT_DIR / 'library.png'}")
                 print(f"  Saved {OUTPUT_DIR / 'player.png'}")
 
+                # --- admin-library.png ---
+                print("Capturing admin-library.png ...")
+                page.goto(f"{base_url}/admin")
+                page.wait_for_selector(".admin-tab-btn", timeout=10000)
+                page.wait_for_load_state("networkidle", timeout=10000)
+                page.screenshot(path=str(OUTPUT_DIR / "admin-library.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'admin-library.png'}")
+
+                # --- admin-users.png ---
+                print("Capturing admin-users.png ...")
+                page.locator(".admin-tab-btn[data-tab='users']").click()
+                page.wait_for_load_state("networkidle", timeout=10000)
+                page.screenshot(path=str(OUTPUT_DIR / "admin-users.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'admin-users.png'}")
+
+                # --- admin-tools.png ---
+                print("Capturing admin-tools.png ...")
+                page.locator(".admin-tab-btn[data-tab='tools']").click()
+                page.wait_for_load_state("networkidle", timeout=10000)
+                page.screenshot(path=str(OUTPUT_DIR / "admin-tools.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'admin-tools.png'}")
+
                 # --- shelves.png ---
                 print("Capturing shelves.png ...")
                 page.goto(f"{base_url}/shelves")
