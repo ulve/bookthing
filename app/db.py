@@ -57,6 +57,10 @@ CREATE TABLE IF NOT EXISTS listening_heartbeats (
 );
 CREATE INDEX IF NOT EXISTS idx_listening_heartbeats_user_book
     ON listening_heartbeats (user_id, book_id, at);
+CREATE INDEX IF NOT EXISTS idx_positions_user_id
+    ON positions (user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at
+    ON sessions (expires_at);
 
 CREATE TABLE IF NOT EXISTS bookshelves (
     shelf_id   TEXT    PRIMARY KEY,
@@ -64,6 +68,8 @@ CREATE TABLE IF NOT EXISTS bookshelves (
     name       TEXT    NOT NULL,
     created_at INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_bookshelves_user_id
+    ON bookshelves (user_id);
 
 CREATE TABLE IF NOT EXISTS bookshelf_books (
     shelf_id TEXT NOT NULL REFERENCES bookshelves(shelf_id) ON DELETE CASCADE,
@@ -71,6 +77,8 @@ CREATE TABLE IF NOT EXISTS bookshelf_books (
     added_at INTEGER NOT NULL,
     PRIMARY KEY (shelf_id, book_id)
 );
+CREATE INDEX IF NOT EXISTS idx_bookshelf_books_shelf_id
+    ON bookshelf_books (shelf_id, added_at);
 """
 
 

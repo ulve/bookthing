@@ -1051,7 +1051,7 @@ async function renderAdmin() {
         <div class="admin-cover-cell">
           <div class="admin-cover-thumb" id="thumb-${b.book_id}">
             ${b.has_cover
-              ? `<img src="/api/cover/${b.book_id}" alt="">`
+              ? `<img src="/api/cover/${b.book_id}" alt="" loading="lazy">`
               : `<div class="admin-cover-placeholder">${esc(initials(b.title))}</div>`}
           </div>
           <div class="admin-cover-btns">

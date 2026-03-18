@@ -67,11 +67,13 @@ def get_shelf_books(db: sqlite3.Connection, user_id: str, shelf_id: str) -> list
         "SELECT book_id FROM bookshelf_books WHERE shelf_id = ? ORDER BY added_at",
         (shelf_id,),
     ).fetchall()
+    data = books_module.load_metadata()
+    books_map = data.get("books", {})
     results = []
     for br in book_rows:
-        detail = books_module.get_book_detail(br["book_id"])
-        if detail:
-            results.append(detail)
+        book = books_map.get(br["book_id"])
+        if book:
+            results.append(books_module._book_detail(book))
     return results
 
 

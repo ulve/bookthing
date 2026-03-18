@@ -1,9 +1,12 @@
 import json
+import os
 import threading
 from pathlib import Path
 from app.config import METADATA_PATH, AUDIOBOOKS_PATH, COVERS_DIR
 
 _metadata_lock = threading.RLock()
+_metadata_cache: dict | None = None
+_metadata_mtime: float | None = None
 
 # Uploaded cover files are stored as data/covers/{book_id}.{ext}
 # and referenced in metadata.json as "__covers/{book_id}.{ext}"
@@ -11,17 +14,25 @@ COVER_PREFIX = "__covers/"
 
 
 def load_metadata() -> dict:
+    global _metadata_cache, _metadata_mtime
     with _metadata_lock:
         if not METADATA_PATH.exists():
             return {"books": {}}
-        with open(METADATA_PATH) as f:
-            return json.load(f)
+        mtime = os.path.getmtime(METADATA_PATH)
+        if _metadata_cache is None or mtime != _metadata_mtime:
+            with open(METADATA_PATH) as f:
+                _metadata_cache = json.load(f)
+            _metadata_mtime = mtime
+        return _metadata_cache
 
 
 def save_metadata(data: dict):
+    global _metadata_cache, _metadata_mtime
     METADATA_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(METADATA_PATH, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+    _metadata_cache = data
+    _metadata_mtime = os.path.getmtime(METADATA_PATH)
 
 
 def update_book(book_id: str, fields: dict):

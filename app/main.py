@@ -16,6 +16,8 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 
 from app import books as books_module
 from app import shelves as shelves_module
@@ -25,6 +27,18 @@ from app.db import get_db, init_db
 from app.streaming import stream_audio
 
 app = FastAPI(docs_url=None, redoc_url=None)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+
+class StaticCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if request.url.path.endswith((".js", ".css", ".webp", ".svg")):
+            response.headers["Cache-Control"] = "public, max-age=3600"
+        return response
+
+
+app.add_middleware(StaticCacheMiddleware)
 static_dir = BASE_DIR / "static"
 
 CLIENT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -289,12 +303,13 @@ def _cached_webp(cover_path: str) -> Path:
 
 
 @app.get("/api/cover/{book_id}")
-def cover(book_id: str, _session=Depends(require_auth)):
+async def cover(book_id: str, _session=Depends(require_auth)):
     cover_path = books_module.get_book_cover_path(book_id)
     if not cover_path:
         raise HTTPException(status_code=404, detail="No cover image")
     try:
-        cached = _cached_webp(cover_path)
+        loop = asyncio.get_event_loop()
+        cached = await loop.run_in_executor(None, _cached_webp, cover_path)
         return FileResponse(
             str(cached),
             media_type="image/webp",
@@ -597,21 +612,32 @@ def admin_activity(_session=Depends(require_admin)):
         ).fetchall()
         # Find session start for currently playing users
         playing = {}
-        for r in rows:
-            if now - r["updated_at"] > PLAYING_THRESHOLD:
-                continue
-            beats = db.execute(
-                "SELECT at FROM listening_heartbeats WHERE user_id = ? AND book_id = ? ORDER BY at DESC LIMIT 500",
-                (r["user_id"], r["book_id"]),
+        active = [(r["user_id"], r["book_id"]) for r in rows if now - r["updated_at"] <= PLAYING_THRESHOLD]
+        if active:
+            placeholders = ",".join("(?,?)" for _ in active)
+            flat_params = [x for pair in active for x in pair]
+            beat_rows = db.execute(
+                f"""SELECT user_id, book_id, at FROM listening_heartbeats
+                    WHERE (user_id, book_id) IN ({placeholders})
+                    ORDER BY user_id, book_id, at DESC""",
+                flat_params,
             ).fetchall()
-            session_start = beats[0]["at"] if beats else r["updated_at"]
-            prev = session_start
-            for b in beats[1:]:
-                if prev - b["at"] > GAP:
-                    break
-                session_start = b["at"]
-                prev = b["at"]
-            playing[(r["user_id"], r["book_id"])] = session_start
+            # Group heartbeats by (user_id, book_id)
+            from collections import defaultdict
+            beats_by_key: dict = defaultdict(list)
+            for b in beat_rows:
+                beats_by_key[(b["user_id"], b["book_id"])].append(b["at"])
+            for user_id, book_id in active:
+                beats = beats_by_key[(user_id, book_id)]
+                updated_at = next(r["updated_at"] for r in rows if r["user_id"] == user_id and r["book_id"] == book_id)
+                session_start = beats[0] if beats else updated_at
+                prev = session_start
+                for at in beats[1:]:
+                    if prev - at > GAP:
+                        break
+                    session_start = at
+                    prev = at
+                playing[(user_id, book_id)] = session_start
 
     data = books_module.load_metadata()
     book_map = {b["book_id"]: b.get("title") or b.get("path", b["book_id"])
@@ -796,7 +822,8 @@ def admin_delete_book(book_id: str, _session=Depends(require_admin)):
 
 
 @app.get("/api/admin/books/{book_id}/fetch-description")
-def fetch_book_description(book_id: str, _session=Depends(require_admin)):
+async def fetch_book_description(book_id: str, _session=Depends(require_admin)):
+    import httpx
     book = books_module.get_book_detail(book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -816,9 +843,10 @@ def fetch_book_description(book_id: str, _session=Depends(require_admin)):
     )
 
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "bookthing/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = _json.loads(resp.read().decode())
+        async with httpx.AsyncClient(headers={"User-Agent": "bookthing/1.0"}, timeout=10) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Google Books API error: {e}")
 
