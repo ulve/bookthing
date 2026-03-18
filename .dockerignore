@@ -1,0 +1,10 @@
+# Everything by default, then whitelist what the Dockerfile actually COPYs
+**
+
+!requirements.txt
+!app/
+!app/**
+!static/
+!static/**
+!scripts/
+!scripts/**
