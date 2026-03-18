@@ -223,7 +223,7 @@ def get_tags_list() -> list:
         if not b.get("missing") and not b.get("hidden"):
             for t in b.get("tags") or []:
                 tags.add(t)
-    return sorted(tags)
+    return sorted(t for t in tags if not t.startswith("_"))
 
 
 def get_book_files(book_id: str) -> list[Path]:

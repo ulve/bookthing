@@ -982,6 +982,15 @@ input:focus, select:focus {
   margin-bottom: 1rem;
 }
 
+#scan-folder {
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text);
+}
+
 .admin-count {
   font-size: 0.8rem;
   color: var(--text-muted);

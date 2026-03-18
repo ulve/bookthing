@@ -359,9 +359,18 @@ def merge(existing: dict, new_entry: dict) -> dict:
     return merged
 
 
-def main():
-    print(f"Scanning {AUDIOBOOKS_PATH} ...")
-    candidates = scan_library(AUDIOBOOKS_PATH)
+def main(folder: str | None = None):
+    scan_root = AUDIOBOOKS_PATH
+    if folder:
+        scan_root = AUDIOBOOKS_PATH / folder
+        if not scan_root.exists():
+            print(f"Folder not found: {scan_root}")
+            sys.exit(1)
+        print(f"Scanning {scan_root} ...")
+    else:
+        print(f"Scanning {AUDIOBOOKS_PATH} ...")
+
+    candidates = scan_library(scan_root)
     print(f"Found {len(candidates)} book candidates")
 
     # Load existing metadata
@@ -383,6 +392,7 @@ def main():
             new_books[book_id] = merge(existing, entry)
         else:
             entry["date_added"] = datetime.now(timezone.utc).isoformat()
+            entry["tags"] = ["_unfetched"]
             new_books[book_id] = entry
             print(f"  + New: {entry['path']}")
 
@@ -400,12 +410,25 @@ def main():
             else:
                 merged["chapters"] = existing["chapters"]
 
-    # Mark missing books
+    # Handle books from existing metadata
+    folder_prefix = (folder.rstrip("/") + "/") if folder else None
     for book_id, book in existing_books.items():
-        if book_id not in new_books:
+        if book_id in new_books:
+            continue
+        book_path = book.get("path", "")
+        if folder:
+            # In folder-scan mode: only mark books inside the scanned folder as missing
+            in_scanned = book_path == folder or book_path.startswith(folder_prefix)
+            if in_scanned:
+                book["missing"] = True
+                new_books[book_id] = book
+                print(f"  ! Missing: {book_path}")
+            else:
+                new_books[book_id] = book  # preserve unchanged
+        else:
             book["missing"] = True
             new_books[book_id] = book
-            print(f"  ! Missing: {book['path']}")
+            print(f"  ! Missing: {book_path}")
 
     # Sort by path for readable diffs
     sorted_books = dict(sorted(new_books.items(), key=lambda x: x[1].get("path", "")))
@@ -489,6 +512,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--book-id", help="Rescan a single book by ID instead of the full library")
+    parser.add_argument("--folder", help="Scan only this subfolder (relative to AUDIOBOOKS_PATH)")
     args = parser.parse_args()
 
     if args.book_id:
@@ -496,4 +520,4 @@ if __name__ == "__main__":
         print(msg)
         sys.exit(0 if ok else 1)
     else:
-        main()
+        main(folder=args.folder)

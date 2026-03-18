@@ -523,11 +523,26 @@ def get_listening_sessions(book_id: str, session=Depends(require_auth)):
 # Admin — library scan
 # ---------------------------------------------------------------------------
 
+@app.get("/api/admin/folders")
+async def admin_list_folders(_session=Depends(require_admin)):
+    try:
+        folders = sorted(
+            p.name for p in AUDIOBOOKS_PATH.iterdir()
+            if p.is_dir()
+        )
+    except OSError:
+        folders = []
+    return {"folders": folders}
+
+
 @app.post("/api/admin/scan")
-async def admin_scan(_session=Depends(require_admin)):
+async def admin_scan(folder: str | None = None, _session=Depends(require_admin)):
     script = BASE_DIR / "scripts" / "scan.py"
+    cmd = [sys.executable, str(script)]
+    if folder:
+        cmd += ["--folder", folder]
     proc = await asyncio.create_subprocess_exec(
-        sys.executable, str(script),
+        *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )

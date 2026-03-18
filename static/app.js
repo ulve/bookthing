@@ -201,8 +201,9 @@ function seriesBadge(book) {
 }
 
 function tagChips(tags, clickable = false) {
-  if (!tags?.length) return "";
-  return `<div class="tag-chips">${tags.map(t => `<span class="tag-chip${clickable ? " tag-chip-link" : ""}" ${clickable ? `data-tag="${esc(t)}"` : ""}>${esc(t)}</span>`).join("")}</div>`;
+  const visible = (tags || []).filter(t => !t.startsWith("_"));
+  if (!visible.length) return "";
+  return `<div class="tag-chips">${visible.map(t => `<span class="tag-chip${clickable ? " tag-chip-link" : ""}" ${clickable ? `data-tag="${esc(t)}"` : ""}>${esc(t)}</span>`).join("")}</div>`;
 }
 
 function esc(s) {
@@ -779,6 +780,7 @@ async function renderAdmin() {
     { key: "no-cover",       label: "No cover",       test: b => !b.has_cover },
     { key: "no-description", label: "No description", test: b => !b.description },
     { key: "no-series",      label: "No series",      test: b => !b.series },
+    { key: "unfetched",      label: "Unfetched",      test: b => Array.isArray(b.tags) && b.tags.includes("_unfetched") },
     { key: "files-missing",  label: "Files missing",  test: b => !!b.missing },
     { key: "hidden",         label: "Hidden",         test: b => !!b.hidden },
   ];
@@ -954,6 +956,9 @@ async function renderAdmin() {
     <div class="admin-toolbar">
       <input type="text" id="admin-search" placeholder="Filter by title, author or path…" style="flex:1;max-width:400px">
       <button class="btn" id="bulk-toggle">Bulk Apply ▾</button>
+      <select id="scan-folder" title="Select folder to scan (leave blank for full scan)">
+        <option value="">Full scan</option>
+      </select>
       <button class="btn" id="scan-btn">Run Scan</button>
       <span class="admin-count" id="admin-count">${books.length} books</span>
     </div>
@@ -1161,15 +1166,31 @@ async function renderAdmin() {
   renderUsersTable(users);
 
   // ── Scan ─────────────────────────────────────────────────────────
+  // Populate folder dropdown
+  fetch("/api/admin/folders", { credentials: "same-origin" })
+    .then(r => r.json())
+    .then(data => {
+      const sel = document.getElementById("scan-folder");
+      for (const f of data.folders || []) {
+        const opt = document.createElement("option");
+        opt.value = f;
+        opt.textContent = f;
+        sel.appendChild(opt);
+      }
+    })
+    .catch(() => {});
+
   document.getElementById("scan-btn").addEventListener("click", async () => {
     const btn = document.getElementById("scan-btn");
     const out = document.getElementById("scan-output");
+    const folder = document.getElementById("scan-folder").value;
     btn.disabled = true;
     btn.textContent = "Scanning…";
     out.classList.remove("hidden");
     out.textContent = "Running scan…";
     try {
-      const res = await fetch("/api/admin/scan", { method: "POST", credentials: "same-origin" });
+      const url = folder ? `/api/admin/scan?folder=${encodeURIComponent(folder)}` : "/api/admin/scan";
+      const res = await fetch(url, { method: "POST", credentials: "same-origin" });
       const data = await res.json();
       out.textContent = data.output || (data.ok ? "Scan complete." : "Scan failed.");
       out.className = "scan-output" + (data.ok ? "" : " scan-output-error");
