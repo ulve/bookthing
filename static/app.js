@@ -764,7 +764,6 @@ async function renderAdmin() {
     if (!folderMap[key]) folderMap[key] = [];
     folderMap[key].push(b);
   }
-  // Folders with >1 book, sorted alphabetically (root last)
   const bulkFolderOpts = Object.keys(folderMap)
     .filter(k => k !== "" && folderMap[k].length >= 1)
     .sort((a, b) => a.localeCompare(b))
@@ -812,13 +811,15 @@ async function renderAdmin() {
               ? `<img src="/api/cover/${b.book_id}" alt="">`
               : `<div class="admin-cover-placeholder">${esc(initials(b.title))}</div>`}
           </div>
-          <label class="admin-upload-btn" title="Upload cover image">
-            &#8593;<input type="file" accept="image/jpeg,image/png,image/webp"
-              class="admin-cover-input" data-id="${b.book_id}" style="display:none">
-          </label>
-          ${b.has_cover
-            ? `<button class="admin-delete-btn" data-id="${b.book_id}" title="Remove cover">&#215;</button>`
-            : ""}
+          <div class="admin-cover-btns">
+            <label class="admin-upload-btn" title="Upload cover image">
+              &#8593;<input type="file" accept="image/jpeg,image/png,image/webp"
+                class="admin-cover-input" data-id="${b.book_id}" style="display:none">
+            </label>
+            ${b.has_cover
+              ? `<button class="admin-cover-del-btn" data-id="${b.book_id}" title="Remove cover">&#215;</button>`
+              : ""}
+          </div>
         </div>
         <div class="admin-fields">
           <div class="admin-path">${esc(b.path)}${b.missing ? ' <span class="missing-badge">missing</span>' : ""}</div>
@@ -865,10 +866,17 @@ async function renderAdmin() {
       </div>`).join("");
   }
 
-  // ── Render page ───────────────────────────────────────────────────
+  // ── Tab structure ─────────────────────────────────────────────────
+  function getActiveTab() {
+    const hash = location.hash.slice(1);
+    return ["library", "users", "tools"].includes(hash) ? hash : "library";
+  }
+
+  // ── Render admin shell ────────────────────────────────────────────
   app.innerHTML = `
     <datalist id="dl-admin-authors">${allAuthors.map(a => `<option value="${esc(a)}">`).join("")}</datalist>
     <datalist id="dl-admin-series">${allSeries.map(s => `<option value="${esc(s)}">`).join("")}</datalist>
+    <datalist id="dl-admin-tags">${allTags.map(t => `<option value="${esc(t)}">`).join("")}</datalist>
 
     <div class="site-header">
       <div class="site-brand" id="nav-home">
@@ -879,523 +887,590 @@ async function renderAdmin() {
       <button class="btn" id="nav-library">&#8592; Library</button>
     </div>
 
-    ${activity.length ? `
-    <div class="activity-section">
-      <div class="activity-header" id="activity-toggle">
-        <span>Recent activity</span>
-        <span class="activity-caret">▾</span>
-      </div>
-      <div class="activity-body" id="activity-body">
-        <table class="activity-table">
-          <thead><tr><th>Who</th><th>Book</th><th>Position</th><th>When</th></tr></thead>
-          <tbody>
-            ${activity.map(a => {
-              const ago = timeAgo(a.updated_at);
-              const pos = a.time_seconds > 0
-                ? `Track ${a.file_index + 1}, ${fmt(a.time_seconds)}`
-                : `Track ${a.file_index + 1}`;
-              const nowSecs = Math.floor(Date.now() / 1000);
-              const playing = a.playing_since != null
-                ? ` <span class="act-playing">▶ ${fmtDuration(nowSecs - a.playing_since)}</span>`
-                : "";
-              return `<tr>
-                <td class="act-label">${esc(a.email || "—")}${playing}</td>
-                <td class="act-book"><span class="act-book-link" data-id="${a.book_id}">${esc(a.book_title)}</span></td>
-                <td class="act-pos">${pos}</td>
-                <td class="act-when">${ago}</td>
-              </tr>`;
-            }).join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>` : ""}
-
-    <div class="activity-section">
-      <div class="activity-header" id="emails-toggle">
-        <span>Allowed emails</span>
-        <span class="activity-caret">▾</span>
-      </div>
-      <div class="activity-body hidden" id="emails-body">
-        <div class="emails-add-row">
-          <input type="email" id="new-email-input" placeholder="user@example.com">
-          <label class="emails-admin-check">
-            <input type="checkbox" id="new-email-admin"> Admin
-          </label>
-          <button class="btn btn-accent" id="add-email-btn">Add</button>
-        </div>
-        <table class="activity-table" id="emails-table">
-          <thead><tr><th>Email</th><th>Admin</th><th></th></tr></thead>
-          <tbody id="emails-tbody">
-            ${allowedEmails.map(e => `
-              <tr data-email="${esc(e.email)}">
-                <td>${esc(e.email)}</td>
-                <td>${e.is_admin ? "✓" : ""}</td>
-                <td class="act-pos" style="display:flex;gap:0.4rem;align-items:center">
-                  <button class="btn btn-sm send-link-btn" data-email="${esc(e.email)}">Send link</button>
-                  <button class="btn btn-sm remove-email-btn" data-email="${esc(e.email)}">Remove</button>
-                  <span class="send-link-status" data-email="${esc(e.email)}"></span>
-                </td>
-              </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
+    <div class="admin-tab-nav">
+      <button class="admin-tab-btn" data-tab="library">Library</button>
+      <button class="admin-tab-btn" data-tab="users">Users &amp; Access</button>
+      <button class="admin-tab-btn" data-tab="tools">Tools</button>
     </div>
 
-    <div class="activity-section">
-      <div class="activity-header" id="users-toggle">
-        <span>Users</span>
-        <span class="activity-caret">▾</span>
-      </div>
-      <div class="activity-body hidden" id="users-body">
-        <table class="activity-table" id="users-table">
-          <thead><tr><th>Email</th><th>Admin</th><th>Debug logging</th></tr></thead>
-          <tbody id="users-tbody"></tbody>
-        </table>
-      </div>
-    </div>
+    <div id="admin-tab-library" class="admin-tab-pane"></div>
+    <div id="admin-tab-users"   class="admin-tab-pane hidden"></div>
+    <div id="admin-tab-tools"   class="admin-tab-pane hidden"></div>
 
-    <div class="admin-toolbar">
-      <input type="text" id="admin-search" placeholder="Filter by title, author or path…" style="flex:1;max-width:400px">
-      <button class="btn" id="bulk-toggle">Bulk Apply ▾</button>
-      <select id="scan-folder" title="Select folder to scan (leave blank for full scan)">
-        <option value="">Full scan</option>
-      </select>
-      <button class="btn" id="scan-btn">Run Scan</button>
-      <span class="admin-count" id="admin-count">${books.length} books</span>
-    </div>
-    <div class="scan-output hidden" id="scan-output"></div>
-    <div class="admin-filter-chips">
-      <span class="filter-chips-label">Show:</span>
-      ${MISSING_FILTERS.map(f => `<button class="btn admin-chip" data-chip="${f.key}">${f.label}</button>`).join("")}
-    </div>
-
-    <div class="admin-bulk hidden" id="admin-bulk">
-      <div class="admin-bulk-inner">
-        <div class="admin-bulk-title">Apply to all books in a folder</div>
-        <div class="admin-bulk-form">
-          <div class="admin-bulk-field">
-            <label>Folder</label>
-            <select id="bulk-folder">
-              <option value="">— select —</option>
-              ${bulkFolderOpts}
-            </select>
-          </div>
-          <div class="admin-bulk-field">
-            <label>Author <span class="field-hint">blank = skip</span></label>
-            <input type="text" id="bulk-author" placeholder="Author" list="dl-admin-authors">
-          </div>
-          <div class="admin-bulk-field">
-            <label>Series <span class="field-hint">blank = skip</span></label>
-            <input type="text" id="bulk-series" placeholder="Series" list="dl-admin-series">
-          </div>
-          <div class="admin-bulk-field">
-            <label>Tags <span class="field-hint">blank = skip</span></label>
-            <input type="text" id="bulk-tags" class="admin-input-tags" placeholder="tag1, tag2, …">
-            <label class="admin-bulk-check">
-              <input type="checkbox" id="bulk-tags-add"> Add to existing tags
-            </label>
-          </div>
-        </div>
-        <div class="admin-bulk-preview" id="bulk-preview"></div>
-        <div class="admin-bulk-actions">
-          <button class="btn btn-accent" id="bulk-apply" disabled>Apply</button>
-          <span class="admin-status" id="bulk-status"></span>
-        </div>
-      </div>
-    </div>
-
-    <div class="admin-tag-tools" id="admin-tag-tools">
-      <div class="admin-bulk-inner">
-        <div class="admin-bulk-title">Tag Tools</div>
-        <div class="admin-bulk-form">
-          <div class="admin-bulk-field">
-            <label>Tag to remove / rename</label>
-            <input type="text" id="tag-old" class="admin-input-tags" placeholder="existing tag" list="dl-admin-tags">
-            <datalist id="dl-admin-tags">${allTags.map(t => `<option value="${esc(t)}">`).join("")}</datalist>
-          </div>
-          <div class="admin-bulk-field">
-            <label>Rename to <span class="field-hint">blank = remove</span></label>
-            <input type="text" id="tag-new" class="admin-input-tags" placeholder="new tag name (leave blank to remove)">
-          </div>
-        </div>
-        <div class="admin-bulk-actions">
-          <button class="btn btn-accent" id="tag-apply">Apply</button>
-          <span class="admin-status" id="tag-status"></span>
-        </div>
-      </div>
-    </div>
-
-    <div class="admin-list" id="admin-list">
-      ${renderAdminTable(books)}
+    <div class="admin-toast hidden" id="admin-toast"></div>
+    <div class="admin-dirty-bar hidden" id="admin-dirty-bar">
+      <span id="admin-dirty-count"></span>
     </div>`;
 
   // ── Nav ───────────────────────────────────────────────────────────
   document.getElementById("nav-home").addEventListener("click", () => navigate("/"));
   document.getElementById("nav-library").addEventListener("click", () => navigate("/"));
 
-  // ── Activity section ──────────────────────────────────────────────
-  document.getElementById("activity-toggle")?.addEventListener("click", () => {
-    const body = document.getElementById("activity-body");
-    const hidden = body.classList.toggle("hidden");
-    document.querySelector("#activity-toggle .activity-caret").textContent = hidden ? "▾" : "▴";
-  });
-  document.querySelectorAll(".act-book-link").forEach(el => {
-    el.addEventListener("click", () => navigate(`/book/${el.dataset.id}`));
-  });
+  // ── Toast helper ──────────────────────────────────────────────────
+  function showToast(message, type = "ok") {
+    const toast = document.getElementById("admin-toast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.className = `admin-toast admin-toast-${type}`;
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => { toast.className = "admin-toast hidden"; }, 3500);
+  }
 
-  // ── Allowed emails ─────────────────────────────────────────────────
-  document.getElementById("emails-toggle").addEventListener("click", () => {
-    const body = document.getElementById("emails-body");
-    const hidden = body.classList.toggle("hidden");
-    document.querySelector("#emails-toggle .activity-caret").textContent = hidden ? "▾" : "▴";
-  });
+  // ── Dirty tracking ────────────────────────────────────────────────
+  let dirtyCount = 0;
 
-  function renderEmailsTable(emails) {
-    document.getElementById("emails-tbody").innerHTML = emails.map(e => `
-      <tr data-email="${esc(e.email)}">
-        <td>${esc(e.email)}</td>
+  function markDirty(id) {
+    const row = document.querySelector(`.admin-row[data-id="${id}"]`);
+    if (row && !row.classList.contains("admin-row-dirty")) {
+      row.classList.add("admin-row-dirty");
+      dirtyCount++;
+      updateDirtyBar();
+    }
+  }
+
+  function clearDirty(id) {
+    const row = document.querySelector(`.admin-row[data-id="${id}"]`);
+    if (row && row.classList.contains("admin-row-dirty")) {
+      row.classList.remove("admin-row-dirty");
+      dirtyCount = Math.max(0, dirtyCount - 1);
+      updateDirtyBar();
+    }
+  }
+
+  function updateDirtyBar() {
+    const bar = document.getElementById("admin-dirty-bar");
+    const countEl = document.getElementById("admin-dirty-count");
+    if (!bar || !countEl) return;
+    if (dirtyCount > 0) {
+      countEl.textContent = `${dirtyCount} unsaved change${dirtyCount !== 1 ? "s" : ""}`;
+      bar.classList.remove("hidden");
+    } else {
+      bar.classList.add("hidden");
+    }
+  }
+
+  // ── Library tab HTML ──────────────────────────────────────────────
+  function renderLibraryTabHtml() {
+    const filtered = getFiltered();
+    const countText = filtered.length === books.length
+      ? `${books.length} books`
+      : `${filtered.length} / ${books.length} books`;
+    return `
+      <div class="admin-toolbar">
+        <input type="text" id="admin-search" placeholder="Filter by title, author or path…" value="${esc(adminSearch)}">
+        <span class="admin-count" id="admin-count">${countText}</span>
+      </div>
+      <div class="admin-filter-chips">
+        <span class="filter-chips-label">Show:</span>
+        ${MISSING_FILTERS.map(f => `<button class="btn admin-chip${activeMissingFilters.has(f.key) ? " btn-accent" : ""}" data-chip="${f.key}">${f.label}</button>`).join("")}
+      </div>
+      <div class="admin-list" id="admin-list">
+        ${renderAdminTable(filtered)}
+      </div>`;
+  }
+
+  // ── Users tab HTML ────────────────────────────────────────────────
+  function renderUsersTabHtml() {
+    const activityMap = {};
+    for (const a of activity) {
+      if (!activityMap[a.email] || a.updated_at > activityMap[a.email].updated_at) {
+        activityMap[a.email] = a;
+      }
+    }
+    const userMap = Object.fromEntries(users.map(u => [u.email, u]));
+
+    return `
+      ${activity.length ? `
+      <div class="admin-card">
+        <div class="admin-card-title">Recent Activity</div>
+        <div class="admin-card-body admin-card-body-table">
+          <table class="activity-table">
+            <thead><tr><th>Who</th><th>Book</th><th>Position</th><th>When</th></tr></thead>
+            <tbody>
+              ${activity.map(a => {
+                const ago = timeAgo(a.updated_at);
+                const pos = a.time_seconds > 0
+                  ? `Track ${a.file_index + 1}, ${fmt(a.time_seconds)}`
+                  : `Track ${a.file_index + 1}`;
+                const nowSecs = Math.floor(Date.now() / 1000);
+                const playing = a.playing_since != null
+                  ? ` <span class="act-playing">▶ ${fmtDuration(nowSecs - a.playing_since)}</span>`
+                  : "";
+                return `<tr>
+                  <td class="act-label">${esc(a.email || "—")}${playing}</td>
+                  <td class="act-book"><span class="act-book-link" data-id="${a.book_id}">${esc(a.book_title)}</span></td>
+                  <td class="act-pos">${pos}</td>
+                  <td class="act-when">${ago}</td>
+                </tr>`;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>` : ""}
+
+      <div class="admin-card">
+        <div class="admin-card-title">Users &amp; Access</div>
+        <div class="emails-add-row">
+          <input type="email" id="new-email-input" placeholder="user@example.com">
+          <label class="emails-admin-check">
+            <input type="checkbox" id="new-email-admin"> Admin
+          </label>
+          <button class="btn btn-accent" id="add-email-btn">Invite User</button>
+        </div>
+        <div class="admin-card-body admin-card-body-table">
+          <table class="activity-table">
+            <thead><tr><th>Email</th><th>Status</th><th>Admin</th><th>Debug</th><th>Last seen</th><th></th></tr></thead>
+            <tbody id="users-combined-tbody">
+              ${buildCombinedUsersHtml(allowedEmails, userMap, activityMap)}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  function buildCombinedUsersHtml(emails, userMap, activityMap) {
+    return emails.map(e => {
+      const u = userMap[e.email];
+      const lastSeen = activityMap[e.email] ? timeAgo(activityMap[e.email].updated_at) : "—";
+      const status = u ? "registered" : "pending";
+      return `<tr data-email="${esc(e.email)}">
+        <td class="act-label">${esc(e.email)}</td>
+        <td><span class="user-status-badge user-status-${status}">${status}</span></td>
         <td>${e.is_admin ? "✓" : ""}</td>
-        <td style="display:flex;gap:0.4rem;align-items:center">
+        <td>
+          ${u ? `<label class="debug-toggle">
+            <input type="checkbox" class="debug-logging-chk" data-email="${esc(e.email)}"
+              ${u.debug_logging ? "checked" : ""}>
+            <span class="debug-toggle-label">${u.debug_logging ? "On" : "Off"}</span>
+          </label>` : "—"}
+        </td>
+        <td class="act-when">${lastSeen}</td>
+        <td class="users-actions-cell">
           <button class="btn btn-sm send-link-btn" data-email="${esc(e.email)}">Send link</button>
           <button class="btn btn-sm remove-email-btn" data-email="${esc(e.email)}">Remove</button>
           <span class="send-link-status" data-email="${esc(e.email)}"></span>
         </td>
-      </tr>`).join("");
-    document.querySelectorAll(".remove-email-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const email = btn.dataset.email;
-        await api(`/api/admin/allowed-emails/${encodeURIComponent(email)}`, { method: "DELETE" });
-        allowedEmails = allowedEmails.filter(e => e.email !== email);
-        renderEmailsTable(allowedEmails);
-      });
+      </tr>`;
+    }).join("");
+  }
+
+  // ── Tools tab HTML ────────────────────────────────────────────────
+  function renderToolsTabHtml() {
+    return `
+      <div class="admin-card">
+        <div class="admin-card-title">Library Scanner</div>
+        <div class="admin-card-desc">Scan the audiobooks folder to discover new or changed files.</div>
+        <div class="admin-card-body">
+          <div class="admin-scan-controls">
+            <select id="scan-folder" title="Select folder to scan (leave blank for full scan)">
+              <option value="">Full scan</option>
+            </select>
+            <button class="btn btn-accent" id="scan-btn">Run Scan</button>
+          </div>
+          <div class="scan-output hidden" id="scan-output"></div>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <div class="admin-card-title">Bulk Apply</div>
+        <div class="admin-card-desc">Apply author, series, or tags to all books in a folder at once.</div>
+        <div class="admin-card-body">
+          <div class="admin-bulk-form">
+            <div class="admin-bulk-field">
+              <label>Folder</label>
+              <select id="bulk-folder">
+                <option value="">— select —</option>
+                ${bulkFolderOpts}
+              </select>
+            </div>
+            <div class="admin-bulk-field">
+              <label>Author <span class="field-hint">blank = skip</span></label>
+              <input type="text" id="bulk-author" placeholder="Author" list="dl-admin-authors">
+            </div>
+            <div class="admin-bulk-field">
+              <label>Series <span class="field-hint">blank = skip</span></label>
+              <input type="text" id="bulk-series" placeholder="Series" list="dl-admin-series">
+            </div>
+            <div class="admin-bulk-field">
+              <label>Tags <span class="field-hint">blank = skip</span></label>
+              <input type="text" id="bulk-tags" class="admin-input-tags" placeholder="tag1, tag2, …">
+              <label class="admin-bulk-check">
+                <input type="checkbox" id="bulk-tags-add"> Add to existing tags
+              </label>
+            </div>
+          </div>
+          <div class="admin-bulk-preview" id="bulk-preview"></div>
+          <div class="admin-bulk-actions">
+            <button class="btn btn-accent" id="bulk-apply" disabled>Apply</button>
+            <span class="admin-status" id="bulk-status"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <div class="admin-card-title">Tag Tools</div>
+        <div class="admin-card-desc">Rename or remove a tag across all books in the library.</div>
+        <div class="admin-card-body">
+          <div class="admin-bulk-form">
+            <div class="admin-bulk-field">
+              <label>Tag to remove / rename</label>
+              <input type="text" id="tag-old" class="admin-input-tags" placeholder="existing tag" list="dl-admin-tags">
+            </div>
+            <div class="admin-bulk-field">
+              <label>Rename to <span class="field-hint">blank = remove</span></label>
+              <input type="text" id="tag-new" class="admin-input-tags" placeholder="new tag name (leave blank to remove)">
+            </div>
+          </div>
+          <div class="admin-bulk-actions">
+            <button class="btn btn-accent" id="tag-apply">Apply</button>
+            <span class="admin-status" id="tag-status"></span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ── Tab activation ────────────────────────────────────────────────
+  let usersTabWired = false;
+  let toolsTabWired = false;
+
+  function activateTab(tab) {
+    history.replaceState(null, "", `/admin#${tab}`);
+    document.querySelectorAll(".admin-tab-btn").forEach(b =>
+      b.classList.toggle("admin-tab-btn-active", b.dataset.tab === tab));
+    document.querySelectorAll(".admin-tab-pane").forEach(pane => {
+      pane.classList.toggle("hidden", pane.id !== `admin-tab-${tab}`);
     });
-    document.querySelectorAll(".send-link-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const email = btn.dataset.email;
-        const status = document.querySelector(`.send-link-status[data-email="${email}"]`);
-        btn.disabled = true;
-        btn.textContent = "Sending…";
-        status.textContent = "";
-        try {
-          await api(`/api/admin/send-login/${encodeURIComponent(email)}`, { method: "POST" });
-          btn.textContent = "Send link";
-          status.textContent = "✓ Sent";
-          status.style.color = "var(--accent)";
-          setTimeout(() => { status.textContent = ""; }, 4000);
-        } catch {
-          btn.textContent = "Send link";
-          status.textContent = "✗ Failed";
-          status.style.color = "#e06c75";
-        }
-        btn.disabled = false;
-      });
-    });
+    if (tab === "users" && !usersTabWired) {
+      document.getElementById("admin-tab-users").innerHTML = renderUsersTabHtml();
+      wireUsersTab();
+      usersTabWired = true;
+    } else if (tab === "tools" && !toolsTabWired) {
+      document.getElementById("admin-tab-tools").innerHTML = renderToolsTabHtml();
+      wireToolsTab();
+      toolsTabWired = true;
+    }
   }
 
-  renderEmailsTable(allowedEmails);
-
-  document.getElementById("add-email-btn").addEventListener("click", async () => {
-    const input = document.getElementById("new-email-input");
-    const btn = document.getElementById("add-email-btn");
-    const email = input.value.trim().toLowerCase();
-    const isAdmin = document.getElementById("new-email-admin").checked;
-    if (!email || !email.includes("@")) return;
-    btn.disabled = true;
-    try {
-      await api("/api/admin/allowed-emails", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, is_admin: isAdmin }),
-      });
-      allowedEmails = allowedEmails.filter(e => e.email !== email);
-      allowedEmails.unshift({ email, is_admin: isAdmin ? 1 : 0 });
-      renderEmailsTable(allowedEmails);
-      input.value = "";
-      document.getElementById("new-email-admin").checked = false;
-    } catch {
-      input.setCustomValidity("Failed to add email — please try again.");
-      input.reportValidity();
-      setTimeout(() => input.setCustomValidity(""), 3000);
-    } finally {
-      btn.disabled = false;
-    }
+  // ── Wire tab nav ──────────────────────────────────────────────────
+  document.querySelectorAll(".admin-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => activateTab(btn.dataset.tab));
   });
 
-  // ── Users ──────────────────────────────────────────────────────────
-  document.getElementById("users-toggle").addEventListener("click", () => {
-    const body = document.getElementById("users-body");
-    const hidden = body.classList.toggle("hidden");
-    document.querySelector("#users-toggle .activity-caret").textContent = hidden ? "▾" : "▴";
-  });
-
-  function renderUsersTable(userList) {
-    document.getElementById("users-tbody").innerHTML = userList.map(u => `
-      <tr data-email="${esc(u.email)}">
-        <td>${esc(u.email)}</td>
-        <td>${u.is_admin ? "✓" : ""}</td>
-        <td>
-          <label class="debug-toggle">
-            <input type="checkbox" class="debug-logging-chk" data-email="${esc(u.email)}"
-              ${u.debug_logging ? "checked" : ""}>
-            <span class="debug-toggle-label">${u.debug_logging ? "On" : "Off"}</span>
-          </label>
-        </td>
-      </tr>`).join("");
-    document.querySelectorAll(".debug-logging-chk").forEach(chk => {
-      chk.addEventListener("change", async () => {
-        const email = chk.dataset.email;
-        const enabled = chk.checked;
-        chk.disabled = true;
-        try {
-          await api(`/api/admin/users/${encodeURIComponent(email)}/debug-logging`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enabled }),
-          });
-          const u = users.find(u => u.email === email);
-          if (u) u.debug_logging = enabled ? 1 : 0;
-          chk.nextElementSibling.textContent = enabled ? "On" : "Off";
-        } catch {
-          chk.checked = !enabled;
-        } finally {
-          chk.disabled = false;
-        }
-      });
-    });
-  }
-
-  renderUsersTable(users);
-
-  // ── Scan ─────────────────────────────────────────────────────────
-  // Populate folder dropdown
-  fetch("/api/admin/folders", { credentials: "same-origin" })
-    .then(r => r.json())
-    .then(data => {
-      const sel = document.getElementById("scan-folder");
-      for (const f of data.folders || []) {
-        const opt = document.createElement("option");
-        opt.value = f;
-        opt.textContent = f;
-        sel.appendChild(opt);
-      }
-    })
-    .catch(() => {});
-
-  document.getElementById("scan-btn").addEventListener("click", async () => {
-    const btn = document.getElementById("scan-btn");
-    const out = document.getElementById("scan-output");
-    const folder = document.getElementById("scan-folder").value;
-    btn.disabled = true;
-    btn.textContent = "Scanning…";
-    out.classList.remove("hidden");
-    out.textContent = "Running scan…";
-    try {
-      const url = folder ? `/api/admin/scan?folder=${encodeURIComponent(folder)}` : "/api/admin/scan";
-      const res = await fetch(url, { method: "POST", credentials: "same-origin" });
-      const data = await res.json();
-      out.textContent = data.output || (data.ok ? "Scan complete." : "Scan failed.");
-      out.className = "scan-output" + (data.ok ? "" : " scan-output-error");
-    } catch (e) {
-      clientLog("error", "Scan request failed", { message: e.message });
-      out.textContent = "Scan request failed: " + e.message;
-      out.className = "scan-output scan-output-error";
-    }
-    btn.disabled = false;
-    btn.textContent = "Run Scan";
-  });
-
-  function wireBulkPanel() {
-  // ── Bulk toggle ───────────────────────────────────────────────────
-  document.getElementById("bulk-toggle").addEventListener("click", () => {
-    const bulk = document.getElementById("admin-bulk");
-    const open = bulk.classList.toggle("hidden") === false;
-    document.getElementById("bulk-toggle").textContent = open ? "Bulk Apply ▴" : "Bulk Apply ▾";
-  });
-
-  // ── Bulk folder preview ───────────────────────────────────────────
-  function updateBulkPreview() {
-    const key = document.getElementById("bulk-folder").value;
-    const preview = document.getElementById("bulk-preview");
-    const applyBtn = document.getElementById("bulk-apply");
-    if (!key) { preview.innerHTML = ""; applyBtn.disabled = true; return; }
-    const affected = folderMap[key] || [];
-    applyBtn.disabled = !affected.length;
-    const items = affected.slice(0, 6).map(b => `<li>${esc(b.title || b.path)}</li>`).join("");
-    const more = affected.length > 6 ? `<li class="preview-more">…and ${affected.length - 6} more</li>` : "";
-    preview.innerHTML = `
-      <div class="preview-count">${affected.length} book${affected.length !== 1 ? "s" : ""} will be updated</div>
-      <ul class="preview-list">${items}${more}</ul>`;
-  }
-  document.getElementById("bulk-folder").addEventListener("change", updateBulkPreview);
-
-  // ── Bulk apply ────────────────────────────────────────────────────
-  document.getElementById("bulk-apply").addEventListener("click", async () => {
-    const key = document.getElementById("bulk-folder").value;
-    const affected = folderMap[key] || [];
-    if (!affected.length) return;
-    const author  = document.getElementById("bulk-author").value.trim();
-    const series  = document.getElementById("bulk-series").value.trim();
-    const tagsRaw = document.getElementById("bulk-tags").value.trim();
-    const tagsAdd = document.getElementById("bulk-tags-add").checked;
-    const fields  = {};
-    if (author)  fields.author = author;
-    if (series)  fields.series = series;
-    if (tagsRaw) fields.tags   = tagsRaw;
-    if (!Object.keys(fields).length) {
-      document.getElementById("bulk-status").textContent = "Nothing to apply — fill in at least one field";
-      return;
-    }
-    const btn = document.getElementById("bulk-apply");
-    const status = document.getElementById("bulk-status");
-    btn.disabled = true;
-    status.textContent = "Applying…";
-    status.className = "admin-status";
-    try {
-      const res = await api("/api/admin/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ book_ids: affected.map(b => b.book_id), fields, tags_mode: tagsAdd ? "add" : "replace" }),
-      });
-      // Update local book cache
-      const parsedTags = tagsRaw ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean) : null;
-      for (const b of affected) {
-        if (author) b.author = author;
-        if (series) b.series = series;
-        if (parsedTags !== null) {
-          if (tagsAdd) {
-            const combined = new Set([...(b.tags || []), ...parsedTags]);
-            b.tags = [...combined];
-          } else {
-            b.tags = parsedTags;
-          }
-        }
-      }
-      // Re-render to show changes
-      document.getElementById("admin-list").innerHTML = renderAdminTable(getFiltered());
-      wireAdminRows();
-      // Update datalists
-      if (author && !allAuthors.includes(author)) {
-        allAuthors.push(author);
-        document.getElementById("dl-admin-authors").innerHTML += `<option value="${esc(author)}">`;
-      }
-      if (series && !allSeries.includes(series)) {
-        allSeries.push(series);
-        document.getElementById("dl-admin-series").innerHTML += `<option value="${esc(series)}">`;
-      }
-      metaCache = { authors: null, series: null, tags: null };
-      status.textContent = `Updated ${res.updated} book${res.updated !== 1 ? "s" : ""}`;
-      status.className = "admin-status admin-status-ok";
-    } catch {
-      status.textContent = "Error";
-      status.className = "admin-status admin-status-err";
-    } finally {
-      btn.disabled = false;
-      setTimeout(() => { status.textContent = ""; }, 4000);
-    }
-  });
-
-  // Wire bulk tags autocomplete
-  const bulkTagsInput = document.getElementById("bulk-tags");
-  bulkTagsInput.addEventListener("input",  () => showTagAutocomplete(bulkTagsInput, allTags));
-  bulkTagsInput.addEventListener("focus",  () => showTagAutocomplete(bulkTagsInput, allTags));
-  }
-  wireBulkPanel();
-
-  function wireTagTools() {
-  // ── Tag Tools ─────────────────────────────────────────────────────
-  document.getElementById("tag-apply").addEventListener("click", async () => {
-    const oldTag = document.getElementById("tag-old").value.trim();
-    const newTag = document.getElementById("tag-new").value.trim();
-    const btn    = document.getElementById("tag-apply");
-    const status = document.getElementById("tag-status");
-    if (!oldTag) {
-      status.textContent = "Enter a tag to remove or rename";
-      status.className = "admin-status admin-status-err";
-      return;
-    }
-    btn.disabled = true;
-    status.textContent = "Working…";
-    status.className = "admin-status";
-    try {
-      const res = await api("/api/admin/tags/rename", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ old_tag: oldTag, new_tag: newTag || null }),
-      });
-      // Update local books array
-      for (const b of books) {
-        if (!b.tags) continue;
-        if (newTag) {
-          b.tags = [...new Set(b.tags.map(t => t === oldTag ? newTag : t))];
-        } else {
-          b.tags = b.tags.filter(t => t !== oldTag);
-        }
-      }
-      // Update allTags
-      const tagIdx = allTags.indexOf(oldTag);
-      if (tagIdx !== -1) allTags.splice(tagIdx, 1);
-      if (newTag && !allTags.includes(newTag)) allTags.push(newTag);
-      // Refresh datalist
-      document.getElementById("dl-admin-tags").innerHTML = allTags.map(t => `<option value="${esc(t)}">`).join("");
-      metaCache = { authors: null, series: null, tags: null };
-      document.getElementById("admin-list").innerHTML = renderAdminTable(getFiltered());
-      wireAdminRows();
-      document.getElementById("tag-old").value = "";
-      document.getElementById("tag-new").value = "";
-      const verb = newTag ? `renamed to "${newTag}"` : "removed";
-      status.textContent = `"${oldTag}" ${verb} in ${res.updated} book${res.updated !== 1 ? "s" : ""}`;
-      status.className = "admin-status admin-status-ok";
-    } catch {
-      status.textContent = "Error";
-      status.className = "admin-status admin-status-err";
-    } finally {
-      btn.disabled = false;
-      setTimeout(() => { status.textContent = ""; }, 4000);
-    }
-  });
-  }
-  wireTagTools();
-
-  // ── Missing-metadata filter chips ─────────────────────────────────
+  // ── Library tab wiring ────────────────────────────────────────────
   function refreshAdminList() {
     const filtered = getFiltered();
     document.getElementById("admin-list").innerHTML = renderAdminTable(filtered);
-    document.getElementById("admin-count").textContent =
+    const countEl = document.getElementById("admin-count");
+    if (countEl) countEl.textContent =
       filtered.length === books.length ? `${books.length} books` : `${filtered.length} / ${books.length} books`;
+    dirtyCount = 0;
+    updateDirtyBar();
     wireAdminRows();
   }
 
-  document.querySelectorAll(".admin-chip").forEach(chip => {
-    chip.addEventListener("click", () => {
-      const key = chip.dataset.chip;
-      if (activeMissingFilters.has(key)) {
-        activeMissingFilters.delete(key);
-        chip.classList.remove("btn-accent");
-      } else {
-        activeMissingFilters.add(key);
-        chip.classList.add("btn-accent");
-      }
-      refreshAdminList();
+  function wireLibraryTab() {
+    document.querySelectorAll(".admin-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const key = chip.dataset.chip;
+        if (activeMissingFilters.has(key)) {
+          activeMissingFilters.delete(key);
+          chip.classList.remove("btn-accent");
+        } else {
+          activeMissingFilters.add(key);
+          chip.classList.add("btn-accent");
+        }
+        refreshAdminList();
+      });
     });
-  });
 
-  // ── Search ────────────────────────────────────────────────────────
-  let searchTimer;
-  document.getElementById("admin-search").addEventListener("input", e => {
-    adminSearch = e.target.value;
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(refreshAdminList, 200);
-  });
+    let searchTimer;
+    document.getElementById("admin-search").addEventListener("input", e => {
+      adminSearch = e.target.value;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(refreshAdminList, 200);
+    });
 
-  // ── Wire rows ─────────────────────────────────────────────────────
-  wireAdminRows();
-
-  function markDirty(id) {
-    document.querySelector(`.admin-row[data-id="${id}"]`)?.classList.add("admin-row-dirty");
+    wireAdminRows();
   }
 
+  // ── Users tab wiring ──────────────────────────────────────────────
+  function wireUsersTab() {
+    document.querySelectorAll(".act-book-link").forEach(el => {
+      el.addEventListener("click", () => navigate(`/book/${el.dataset.id}`));
+    });
+
+    function refreshCombinedTable() {
+      const activityMap = {};
+      for (const a of activity) {
+        if (!activityMap[a.email] || a.updated_at > activityMap[a.email].updated_at) {
+          activityMap[a.email] = a;
+        }
+      }
+      const userMap = Object.fromEntries(users.map(u => [u.email, u]));
+      const tbody = document.getElementById("users-combined-tbody");
+      if (!tbody) return;
+      tbody.innerHTML = buildCombinedUsersHtml(allowedEmails, userMap, activityMap);
+      wireUsersTableEvents();
+    }
+
+    function wireUsersTableEvents() {
+      document.querySelectorAll(".remove-email-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const email = btn.dataset.email;
+          await api(`/api/admin/allowed-emails/${encodeURIComponent(email)}`, { method: "DELETE" });
+          allowedEmails = allowedEmails.filter(e => e.email !== email);
+          refreshCombinedTable();
+        });
+      });
+
+      document.querySelectorAll(".send-link-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const email = btn.dataset.email;
+          const statusEl = document.querySelector(`.send-link-status[data-email="${CSS.escape(email)}"]`);
+          btn.disabled = true;
+          btn.textContent = "Sending…";
+          if (statusEl) statusEl.textContent = "";
+          try {
+            await api(`/api/admin/send-login/${encodeURIComponent(email)}`, { method: "POST" });
+            btn.textContent = "Send link";
+            showToast(`Login link sent to ${email}`);
+          } catch {
+            btn.textContent = "Send link";
+            if (statusEl) { statusEl.textContent = "✗ Failed"; statusEl.style.color = "#e06c75"; }
+          }
+          btn.disabled = false;
+        });
+      });
+
+      document.querySelectorAll(".debug-logging-chk").forEach(chk => {
+        chk.addEventListener("change", async () => {
+          const email = chk.dataset.email;
+          const enabled = chk.checked;
+          chk.disabled = true;
+          try {
+            await api(`/api/admin/users/${encodeURIComponent(email)}/debug-logging`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ enabled }),
+            });
+            const u = users.find(u => u.email === email);
+            if (u) u.debug_logging = enabled ? 1 : 0;
+            chk.nextElementSibling.textContent = enabled ? "On" : "Off";
+          } catch {
+            chk.checked = !enabled;
+          } finally {
+            chk.disabled = false;
+          }
+        });
+      });
+    }
+
+    wireUsersTableEvents();
+
+    document.getElementById("add-email-btn").addEventListener("click", async () => {
+      const input = document.getElementById("new-email-input");
+      const btn = document.getElementById("add-email-btn");
+      const email = input.value.trim().toLowerCase();
+      const isAdmin = document.getElementById("new-email-admin").checked;
+      if (!email || !email.includes("@")) return;
+      btn.disabled = true;
+      try {
+        await api("/api/admin/allowed-emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, is_admin: isAdmin }),
+        });
+        allowedEmails = allowedEmails.filter(e => e.email !== email);
+        allowedEmails.unshift({ email, is_admin: isAdmin ? 1 : 0 });
+        refreshCombinedTable();
+        input.value = "";
+        document.getElementById("new-email-admin").checked = false;
+        showToast(`${email} invited`);
+      } catch {
+        input.setCustomValidity("Failed to add email — please try again.");
+        input.reportValidity();
+        setTimeout(() => input.setCustomValidity(""), 3000);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // ── Tools tab wiring ──────────────────────────────────────────────
+  function wireToolsTab() {
+    // Scanner
+    fetch("/api/admin/folders", { credentials: "same-origin" })
+      .then(r => r.json())
+      .then(data => {
+        const sel = document.getElementById("scan-folder");
+        if (!sel) return;
+        for (const f of data.folders || []) {
+          const opt = document.createElement("option");
+          opt.value = f;
+          opt.textContent = f;
+          sel.appendChild(opt);
+        }
+      })
+      .catch(() => {});
+
+    document.getElementById("scan-btn").addEventListener("click", async () => {
+      const btn = document.getElementById("scan-btn");
+      const out = document.getElementById("scan-output");
+      const folder = document.getElementById("scan-folder").value;
+      btn.disabled = true;
+      btn.textContent = "Scanning…";
+      out.classList.remove("hidden");
+      out.textContent = "Running scan…";
+      try {
+        const url = folder ? `/api/admin/scan?folder=${encodeURIComponent(folder)}` : "/api/admin/scan";
+        const res = await fetch(url, { method: "POST", credentials: "same-origin" });
+        const data = await res.json();
+        out.textContent = data.output || (data.ok ? "Scan complete." : "Scan failed.");
+        out.className = "scan-output" + (data.ok ? "" : " scan-output-error");
+      } catch (e) {
+        clientLog("error", "Scan request failed", { message: e.message });
+        out.textContent = "Scan request failed: " + e.message;
+        out.className = "scan-output scan-output-error";
+      }
+      btn.disabled = false;
+      btn.textContent = "Run Scan";
+    });
+
+    // Bulk apply
+    function updateBulkPreview() {
+      const key = document.getElementById("bulk-folder").value;
+      const preview = document.getElementById("bulk-preview");
+      const applyBtn = document.getElementById("bulk-apply");
+      if (!key) { preview.innerHTML = ""; applyBtn.disabled = true; return; }
+      const affected = folderMap[key] || [];
+      applyBtn.disabled = !affected.length;
+      const items = affected.slice(0, 6).map(b => `<li>${esc(b.title || b.path)}</li>`).join("");
+      const more = affected.length > 6 ? `<li class="preview-more">…and ${affected.length - 6} more</li>` : "";
+      preview.innerHTML = `
+        <div class="preview-count">${affected.length} book${affected.length !== 1 ? "s" : ""} will be updated</div>
+        <ul class="preview-list">${items}${more}</ul>`;
+    }
+    document.getElementById("bulk-folder").addEventListener("change", updateBulkPreview);
+
+    document.getElementById("bulk-apply").addEventListener("click", async () => {
+      const key = document.getElementById("bulk-folder").value;
+      const affected = folderMap[key] || [];
+      if (!affected.length) return;
+      const author  = document.getElementById("bulk-author").value.trim();
+      const series  = document.getElementById("bulk-series").value.trim();
+      const tagsRaw = document.getElementById("bulk-tags").value.trim();
+      const tagsAdd = document.getElementById("bulk-tags-add").checked;
+      const fields  = {};
+      if (author)  fields.author = author;
+      if (series)  fields.series = series;
+      if (tagsRaw) fields.tags   = tagsRaw;
+      if (!Object.keys(fields).length) {
+        document.getElementById("bulk-status").textContent = "Nothing to apply — fill in at least one field";
+        return;
+      }
+      const btn = document.getElementById("bulk-apply");
+      const status = document.getElementById("bulk-status");
+      btn.disabled = true;
+      status.textContent = "Applying…";
+      status.className = "admin-status";
+      try {
+        const res = await api("/api/admin/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ book_ids: affected.map(b => b.book_id), fields, tags_mode: tagsAdd ? "add" : "replace" }),
+        });
+        const parsedTags = tagsRaw ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean) : null;
+        for (const b of affected) {
+          if (author) b.author = author;
+          if (series) b.series = series;
+          if (parsedTags !== null) {
+            if (tagsAdd) {
+              const combined = new Set([...(b.tags || []), ...parsedTags]);
+              b.tags = [...combined];
+            } else {
+              b.tags = parsedTags;
+            }
+          }
+        }
+        refreshAdminList();
+        if (author && !allAuthors.includes(author)) {
+          allAuthors.push(author);
+          document.getElementById("dl-admin-authors").innerHTML += `<option value="${esc(author)}">`;
+        }
+        if (series && !allSeries.includes(series)) {
+          allSeries.push(series);
+          document.getElementById("dl-admin-series").innerHTML += `<option value="${esc(series)}">`;
+        }
+        metaCache = { authors: null, series: null, tags: null };
+        showToast(`Updated ${res.updated} book${res.updated !== 1 ? "s" : ""}`);
+        status.textContent = "";
+      } catch {
+        status.textContent = "Error";
+        status.className = "admin-status admin-status-err";
+      } finally {
+        btn.disabled = false;
+        setTimeout(() => { status.textContent = ""; }, 4000);
+      }
+    });
+
+    const bulkTagsInput = document.getElementById("bulk-tags");
+    if (bulkTagsInput) {
+      bulkTagsInput.addEventListener("input",  () => showTagAutocomplete(bulkTagsInput, allTags));
+      bulkTagsInput.addEventListener("focus",  () => showTagAutocomplete(bulkTagsInput, allTags));
+    }
+
+    // Tag tools
+    document.getElementById("tag-apply").addEventListener("click", async () => {
+      const oldTag = document.getElementById("tag-old").value.trim();
+      const newTag = document.getElementById("tag-new").value.trim();
+      const btn    = document.getElementById("tag-apply");
+      const status = document.getElementById("tag-status");
+      if (!oldTag) {
+        status.textContent = "Enter a tag to remove or rename";
+        status.className = "admin-status admin-status-err";
+        return;
+      }
+      btn.disabled = true;
+      status.textContent = "Working…";
+      status.className = "admin-status";
+      try {
+        const res = await api("/api/admin/tags/rename", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ old_tag: oldTag, new_tag: newTag || null }),
+        });
+        for (const b of books) {
+          if (!b.tags) continue;
+          if (newTag) {
+            b.tags = [...new Set(b.tags.map(t => t === oldTag ? newTag : t))];
+          } else {
+            b.tags = b.tags.filter(t => t !== oldTag);
+          }
+        }
+        const tagIdx = allTags.indexOf(oldTag);
+        if (tagIdx !== -1) allTags.splice(tagIdx, 1);
+        if (newTag && !allTags.includes(newTag)) allTags.push(newTag);
+        document.getElementById("dl-admin-tags").innerHTML = allTags.map(t => `<option value="${esc(t)}">`).join("");
+        metaCache = { authors: null, series: null, tags: null };
+        refreshAdminList();
+        document.getElementById("tag-old").value = "";
+        document.getElementById("tag-new").value = "";
+        const verb = newTag ? `renamed to "${newTag}"` : "removed";
+        showToast(`"${oldTag}" ${verb} in ${res.updated} book${res.updated !== 1 ? "s" : ""}`);
+        status.textContent = "";
+      } catch {
+        status.textContent = "Error";
+        status.className = "admin-status admin-status-err";
+      } finally {
+        btn.disabled = false;
+        setTimeout(() => { status.textContent = ""; }, 4000);
+      }
+    });
+  }
+
+  // ── Per-book row wiring ───────────────────────────────────────────
   function wireAdminRows() {
-    // Dirty-state tracking — mark row when any field changes
+    // Dirty-state tracking
     document.querySelectorAll(".admin-row[data-id]").forEach(row => {
       const id = row.dataset.id;
       row.querySelectorAll("input[data-field], textarea[data-field]").forEach(el => {
@@ -1406,7 +1481,7 @@ async function renderAdmin() {
 
     // Tag autocomplete on each row
     document.querySelectorAll(".admin-input-tags").forEach(input => {
-      if (input.id === "bulk-tags") return; // already wired above
+      if (input.id === "bulk-tags") return;
       input.addEventListener("input", () => showTagAutocomplete(input, allTags));
       input.addEventListener("focus", () => showTagAutocomplete(input, allTags));
     });
@@ -1427,7 +1502,7 @@ async function renderAdmin() {
       });
     });
 
-    // Remove link button (delegated on each links section)
+    // Remove link button (delegated)
     document.querySelectorAll(".admin-links-section").forEach(section => {
       section.addEventListener("click", e => {
         const removeBtn = e.target.closest(".admin-link-remove");
@@ -1451,7 +1526,6 @@ async function renderAdmin() {
         try {
           const data = await api(`/api/admin/books/${id}/rescan`, { method: "POST" });
           if (data.ok) {
-            // Reload admin page to reflect updated files/cover
             navigate("/admin", true);
           } else {
             status.textContent = data.output?.trim() || "Rescan failed.";
@@ -1546,7 +1620,6 @@ async function renderAdmin() {
             book.number_in_series = payload.number_in_series ? parseFloat(payload.number_in_series) : null;
             book.tags   = tagsVal.split(",").map(t => t.trim()).filter(Boolean);
           }
-          // Update datalists with any new values
           if (payload.author && !allAuthors.includes(payload.author)) {
             allAuthors.push(payload.author);
             document.getElementById("dl-admin-authors").innerHTML += `<option value="${esc(payload.author)}">`;
@@ -1559,8 +1632,7 @@ async function renderAdmin() {
             if (!allTags.includes(t)) allTags.push(t);
           }
           metaCache = { authors: null, series: null, tags: null };
-          // Clear dirty state on success
-          row.classList.remove("admin-row-dirty");
+          clearDirty(id);
           status.textContent = "✓ Saved";
           status.className = "admin-status admin-status-ok";
         } catch {
@@ -1586,13 +1658,12 @@ async function renderAdmin() {
         status.className = "admin-status";
         try {
           await api(`/api/admin/books/${id}`, { method: "DELETE" });
-          // Remove from local array and DOM
           const idx = books.findIndex(b => b.book_id === id);
           if (idx !== -1) books.splice(idx, 1);
           row.remove();
           const countEl = document.getElementById("admin-count");
           const filtered = getFiltered();
-          countEl.textContent = filtered.length === books.length
+          if (countEl) countEl.textContent = filtered.length === books.length
             ? `${books.length} books`
             : `${filtered.length} / ${books.length} books`;
         } catch {
@@ -1620,15 +1691,12 @@ async function renderAdmin() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ hidden: newHidden }),
           });
-          // Update local book object
           const book = books.find(b => b.book_id === id);
           if (book) book.hidden = newHidden;
-          // Update button state
           btn.dataset.hidden = newHidden ? "1" : "0";
           btn.textContent = newHidden ? "Unhide" : "Hide";
           btn.title = newHidden ? "Unhide this book" : "Hide from library";
           btn.classList.toggle("admin-hide-btn-on", newHidden);
-          // Update row class
           const row = document.querySelector(`.admin-row[data-id="${id}"]`);
           row?.classList.toggle("admin-row-hidden", newHidden);
           status.textContent = newHidden ? "Hidden" : "Visible";
@@ -1666,7 +1734,6 @@ async function renderAdmin() {
               <div class="fetch-candidate-desc">${esc(c.description.slice(0, 200))}${c.description.length > 200 ? "…" : ""}</div>
             </div>`).join("");
           resultsEl.classList.remove("hidden");
-          // Store full descriptions for click handler
           const candidates = data.candidates;
           resultsEl.querySelectorAll(".fetch-candidate").forEach(card => {
             card.addEventListener("click", () => {
@@ -1719,7 +1786,7 @@ async function renderAdmin() {
     });
 
     // Cover delete
-    document.querySelectorAll(".admin-delete-btn").forEach(btn => {
+    document.querySelectorAll(".admin-cover-del-btn").forEach(btn => {
       btn.addEventListener("click", async () => {
         const id = btn.dataset.id;
         const status = document.getElementById(`status-${id}`);
@@ -1747,6 +1814,11 @@ async function renderAdmin() {
       });
     });
   }
+
+  // ── Initial render ────────────────────────────────────────────────
+  document.getElementById("admin-tab-library").innerHTML = renderLibraryTabHtml();
+  wireLibraryTab();
+  activateTab(getActiveTab());
 }
 
 // ── Auth error ─────────────────────────────────────────────────────
