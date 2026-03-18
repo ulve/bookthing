@@ -508,13 +508,13 @@ def main():
                 print("Capturing library-mobile.png ...")
                 mob.goto(f"{base_url}/")
                 mob.wait_for_selector(".book-card", timeout=10000)
-                mob.screenshot(path=str(OUTPUT_DIR / "library-mobile.png"), full_page=True)
+                mob.screenshot(path=str(OUTPUT_DIR / "library-mobile.png"))
                 print(f"  Saved {OUTPUT_DIR / 'library-mobile.png'}")
 
                 print("Capturing book-detail-mobile.png ...")
                 mob.goto(f"{base_url}/book/{FEATURED_ID}")
                 mob.wait_for_load_state("networkidle", timeout=10000)
-                mob.screenshot(path=str(OUTPUT_DIR / "book-detail-mobile.png"), full_page=True)
+                mob.screenshot(path=str(OUTPUT_DIR / "book-detail-mobile.png"))
                 print(f"  Saved {OUTPUT_DIR / 'book-detail-mobile.png'}")
 
                 print("Starting mobile playback for player bar ...")
@@ -534,7 +534,7 @@ def main():
                 print("Capturing shelves-mobile.png ...")
                 mob.goto(f"{base_url}/shelves")
                 mob.wait_for_selector(".shelf-card", timeout=10000)
-                mob.screenshot(path=str(OUTPUT_DIR / "shelves-mobile.png"), full_page=True)
+                mob.screenshot(path=str(OUTPUT_DIR / "shelves-mobile.png"))
                 print(f"  Saved {OUTPUT_DIR / 'shelves-mobile.png'}")
 
                 mobile_context.close()
