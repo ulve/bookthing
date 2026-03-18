@@ -370,7 +370,14 @@ def main(folder: str | None = None):
     else:
         print(f"Scanning {AUDIOBOOKS_PATH} ...")
 
-    candidates = scan_library(scan_root)
+    if folder:
+        # Folder-scoped scan: treat the target folder as depth-1 (a book folder),
+        # not depth-0 (the library root). Otherwise audio files directly in the
+        # folder each become separate single-file books instead of one flat book.
+        candidates: list[BookCandidate] = []
+        walk_for_books(scan_root, candidates, AUDIOBOOKS_PATH, depth=1)
+    else:
+        candidates = scan_library(scan_root)
     print(f"Found {len(candidates)} book candidates")
 
     # Load existing metadata
