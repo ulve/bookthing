@@ -231,7 +231,13 @@ def get_book_files(book_id: str) -> list[Path]:
     book = data.get("books", {}).get(book_id)
     if not book:
         return []
-    return [AUDIOBOOKS_PATH / f for f in book.get("files", [])]
+    base = AUDIOBOOKS_PATH.resolve()
+    paths = []
+    for f in book.get("files", []):
+        p = (AUDIOBOOKS_PATH / f).resolve()
+        if p.parts[:len(base.parts)] == base.parts:
+            paths.append(p)
+    return paths
 
 
 def get_book_cover_path(book_id: str) -> Path | None:

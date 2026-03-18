@@ -207,6 +207,13 @@ function seriesBadge(book) {
   return `<span class="book-series-badge">${esc(book.series)}${num}</span>`;
 }
 
+function safeUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" || u.protocol === "http:" ? url : null;
+  } catch (_) { return null; }
+}
+
 function tagChips(tags, clickable = false) {
   const visible = (tags || []).filter(t => !t.startsWith("_"));
   if (!visible.length) return "";
@@ -595,9 +602,12 @@ async function renderBookDetail(bookId) {
     : "";
 
   const linksHtml = (book.links || []).length
-    ? `<div class="book-links">${(book.links).map(l =>
-        `<a class="book-link" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.label || l.url)} &#8599;</a>`
-      ).join("")}</div>`
+    ? `<div class="book-links">${(book.links).map(l => {
+        const href = safeUrl(l.url);
+        return href
+          ? `<a class="book-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(l.label || l.url)} &#8599;</a>`
+          : "";
+      }).join("")}</div>`
     : "";
 
   const durationLine = book.total_seconds > 0
