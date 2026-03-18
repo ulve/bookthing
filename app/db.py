@@ -79,6 +79,18 @@ CREATE TABLE IF NOT EXISTS bookshelf_books (
 );
 CREATE INDEX IF NOT EXISTS idx_bookshelf_books_shelf_id
     ON bookshelf_books (shelf_id, added_at);
+
+CREATE TABLE IF NOT EXISTS book_requests (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    TEXT    NOT NULL,
+    email      TEXT    NOT NULL,
+    title      TEXT    NOT NULL,
+    author     TEXT    NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    status     TEXT    NOT NULL DEFAULT 'pending'
+);
+CREATE INDEX IF NOT EXISTS idx_book_requests_status
+    ON book_requests (status, created_at);
 """
 
 

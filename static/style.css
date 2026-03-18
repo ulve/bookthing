@@ -1800,6 +1800,73 @@ input:focus, select:focus {
 .book-card:hover .shelf-remove-btn { opacity: 1; }
 
 /* ============================================================
+   Book request modal
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.modal-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: min(420px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.modal-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.modal-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.modal-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 7px 10px;
+  font-size: 0.95rem;
+}
+.modal-input:focus { outline: none; border-color: var(--accent); }
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.modal-status { font-size: 0.85rem; }
+.modal-status-ok  { color: #98c379; }
+.modal-status-err { color: #e06c75; }
+
+/* Request badge on Requests tab button */
+.req-badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #000;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 0 5px;
+  min-width: 18px;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 18px;
+  margin-left: 4px;
+}
+
+/* ============================================================
    Scrollbar
    ============================================================ */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

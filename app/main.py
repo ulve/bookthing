@@ -21,7 +21,7 @@ from starlette.middleware.gzip import GZipMiddleware
 
 from app import books as books_module
 from app import shelves as shelves_module
-from app.auth import consume_magic_link, require_auth, require_admin, request_magic_link, get_or_create_user, send_magic_email
+from app.auth import consume_magic_link, require_auth, require_admin, request_magic_link, get_or_create_user, send_magic_email, send_available_email
 from app.config import BASE_DIR, AUDIOBOOKS_PATH, COVERS_DIR, ADMIN_EMAIL, BASE_URL, SECURE_COOKIES, CLIENT_LOG_PATH, CLIENT_LOG_LEVEL
 from app.db import get_db, init_db
 from app.streaming import stream_audio
@@ -948,6 +948,57 @@ async def set_user_debug_logging(email: str, request: Request, _=Depends(require
     with get_db() as db:
         db.execute("UPDATE users SET debug_logging = ? WHERE email = ?", (int(enabled), email))
     return {"ok": True, "email": email, "debug_logging": enabled}
+
+
+# ---------------------------------------------------------------------------
+# Book requests
+# ---------------------------------------------------------------------------
+
+@app.post("/api/requests")
+async def create_request(request: Request, session=Depends(require_auth)):
+    user_id = session["user_id"]
+    email = session["email"]
+    body = await request.json()
+    title = (body.get("title") or "").strip()
+    author = (body.get("author") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title required")
+    now = int(time.time())
+    with get_db() as db:
+        db.execute(
+            "INSERT INTO book_requests (user_id, email, title, author, created_at, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+            (user_id, email, title, author, now),
+        )
+    return {"ok": True}
+
+
+@app.get("/api/admin/requests")
+def list_book_requests(_session=Depends(require_admin)):
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT id, email, title, author, created_at, status FROM book_requests ORDER BY created_at DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/admin/requests/{request_id}/dismiss")
+def dismiss_request(request_id: int, _session=Depends(require_admin)):
+    with get_db() as db:
+        db.execute("UPDATE book_requests SET status = 'dismissed' WHERE id = ?", (request_id,))
+    return {"ok": True}
+
+
+@app.post("/api/admin/requests/{request_id}/available")
+def mark_request_available(request_id: int, _session=Depends(require_admin)):
+    with get_db() as db:
+        row = db.execute(
+            "SELECT email, title, author FROM book_requests WHERE id = ?", (request_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Request not found")
+        db.execute("UPDATE book_requests SET status = 'available' WHERE id = ?", (request_id,))
+    send_available_email(row["email"], row["title"], row["author"])
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

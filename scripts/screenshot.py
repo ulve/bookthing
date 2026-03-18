@@ -254,6 +254,21 @@ def seed_db(db_path: Path, user_id: str, session_id: str):
         (user_id, ONGOING_ID, now),
     )
 
+    # Seed book requests
+    req_base = now - 86400  # 1 day ago
+    conn.execute(
+        "INSERT INTO book_requests (user_id, email, title, author, created_at, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+        (user_id, "admin@example.com", "The Name of the Wind", "Patrick Rothfuss", req_base),
+    )
+    conn.execute(
+        "INSERT INTO book_requests (user_id, email, title, author, created_at, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+        (user_id, "admin@example.com", "Mistborn", "Brandon Sanderson", req_base - 3600),
+    )
+    conn.execute(
+        "INSERT INTO book_requests (user_id, email, title, author, created_at, status) VALUES (?, ?, ?, ?, ?, 'available')",
+        (user_id, "admin@example.com", "The Martian", "Andy Weir", req_base - 86400),
+    )
+
     # Seed bookshelves
     SHELF_SCIFI = "a1b2c3d4e5f6"
     SHELF_FANTASY = "f6e5d4c3b2a1"
@@ -419,6 +434,25 @@ def main():
                 page.wait_for_load_state("networkidle", timeout=10000)
                 page.screenshot(path=str(OUTPUT_DIR / "admin-tools.png"), full_page=True)
                 print(f"  Saved {OUTPUT_DIR / 'admin-tools.png'}")
+
+                # --- admin-requests.png ---
+                print("Capturing admin-requests.png ...")
+                page.locator(".admin-tab-btn[data-tab='requests']").click()
+                page.wait_for_load_state("networkidle", timeout=10000)
+                page.screenshot(path=str(OUTPUT_DIR / "admin-requests.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'admin-requests.png'}")
+
+                # --- request-modal.png ---
+                print("Capturing request-modal.png ...")
+                page.goto(f"{base_url}/")
+                page.wait_for_selector(".book-card", timeout=10000)
+                page.locator("#nav-request-book").click()
+                page.wait_for_selector("#request-modal:not(.hidden)", timeout=5000)
+                page.locator("#req-title").fill("The Kingkiller Chronicle")
+                page.locator("#req-author").fill("Patrick Rothfuss")
+                page.screenshot(path=str(OUTPUT_DIR / "request-modal.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'request-modal.png'}")
+                page.locator("#req-cancel").click()
 
                 # --- shelves.png ---
                 print("Capturing shelves.png ...")

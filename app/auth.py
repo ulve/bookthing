@@ -99,6 +99,32 @@ def send_magic_email(email: str, link_url: str) -> None:
         raise
 
 
+def send_available_email(email: str, title: str, author: str) -> None:
+    """Notify a user that their requested book is now available."""
+    if not GMAIL_SENDER or not GMAIL_APP_PASSWORD:
+        raise HTTPException(status_code=500, detail="Email sending is not configured")
+
+    author_line = f" by {author}" if author else ""
+    msg = MIMEText(
+        f"Hi,\n\nGreat news! The book you requested is now available on Bookthing:\n\n"
+        f"  {title}{author_line}\n\n"
+        f"Log in to start listening: {BASE_URL}\n"
+    )
+    msg["Subject"] = f"Your requested book is now available: {title}"
+    msg["From"] = GMAIL_SENDER
+    msg["To"] = email
+
+    context = ssl.create_default_context()
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls(context=context)
+            server.login(GMAIL_SENDER, GMAIL_APP_PASSWORD)
+            server.sendmail(GMAIL_SENDER, email, msg.as_string())
+    except Exception as e:
+        logger.error("Failed to send available email to %s: %s", email, e)
+        raise
+
+
 def consume_magic_link(token: str) -> str:
     """Validate magic link and create a session. Returns session_id."""
     now = int(time.time())

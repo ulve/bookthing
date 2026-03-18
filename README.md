@@ -50,6 +50,16 @@ Manage the allowed-email list and send login links directly from the UI. Toggle 
 
 Trigger a library scan without shelling into the container, reset book dates, and view the listening activity log.
 
+**Book requests**
+
+![Request modal](docs/screenshots/request-modal.png)
+
+Any logged-in user can request a book via the **Request a book** button in the header. They enter a title or series name and an optional author.
+
+![Admin requests](docs/screenshots/admin-requests.png)
+
+Requests appear in the **Requests** tab on the admin page, with a badge showing how many are pending. Click **Available** to notify the user by email that the book is ready, or **Dismiss** to quietly close the request without sending anything.
+
 **Bookshelves**
 
 ![Shelves](docs/screenshots/shelves.png)
@@ -210,6 +220,7 @@ Visit `/admin` while logged in as an admin. From there you can:
 - Filter by missing metadata: no author, no cover, no description, no series, missing files
 - Trigger a library scan without shelling into the container
 - Manage allowed emails and send login links
+- Review book requests from users — mark as available (sends the user an email) or dismiss
 
 Regular users cannot access `/admin`.
 

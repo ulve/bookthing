@@ -239,10 +239,25 @@ function headerHtml(session) {
         <span class="site-name">bookthing</span>
       </div>
       <button class="btn" id="nav-shelves">Shelves</button>
+      <button class="btn" id="nav-request-book">Request a book</button>
       ${adminLink}
       <form method="post" action="/auth/logout" style="margin:0">
         <button class="btn" type="submit">Sign out</button>
       </form>
+    </div>
+    <div class="modal-overlay hidden" id="request-modal">
+      <div class="modal-box">
+        <div class="modal-title">Request a book</div>
+        <label class="modal-label">Title or series <span class="modal-req">*</span></label>
+        <input class="modal-input" id="req-title" type="text" placeholder="e.g. The Name of the Wind">
+        <label class="modal-label">Author <span class="field-hint">optional</span></label>
+        <input class="modal-input" id="req-author" type="text" placeholder="e.g. Patrick Rothfuss">
+        <div class="modal-actions">
+          <button class="btn" id="req-cancel">Cancel</button>
+          <button class="btn btn-accent" id="req-submit">Send request</button>
+        </div>
+        <div class="modal-status hidden" id="req-status"></div>
+      </div>
     </div>`;
 }
 
@@ -250,6 +265,45 @@ function wireHeaderEvents() {
   document.getElementById("nav-home")?.addEventListener("click", () => navigate("/"));
   document.getElementById("nav-shelves")?.addEventListener("click", () => navigate("/shelves"));
   document.getElementById("nav-admin")?.addEventListener("click", () => navigate("/admin"));
+
+  const modal = document.getElementById("request-modal");
+  document.getElementById("nav-request-book")?.addEventListener("click", () => {
+    document.getElementById("req-title").value = "";
+    document.getElementById("req-author").value = "";
+    const st = document.getElementById("req-status");
+    st.classList.add("hidden");
+    st.textContent = "";
+    modal.classList.remove("hidden");
+    document.getElementById("req-title").focus();
+  });
+  document.getElementById("req-cancel")?.addEventListener("click", () => modal.classList.add("hidden"));
+  modal?.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); });
+  document.getElementById("req-submit")?.addEventListener("click", async () => {
+    const title = document.getElementById("req-title").value.trim();
+    const author = document.getElementById("req-author").value.trim();
+    const st = document.getElementById("req-status");
+    if (!title) { document.getElementById("req-title").focus(); return; }
+    const btn = document.getElementById("req-submit");
+    btn.disabled = true;
+    btn.textContent = "Sending…";
+    st.classList.add("hidden");
+    try {
+      await api("/api/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, author }),
+      });
+      st.textContent = "Request sent!";
+      st.className = "modal-status modal-status-ok";
+      setTimeout(() => modal.classList.add("hidden"), 1500);
+    } catch {
+      st.textContent = "Failed to send — please try again.";
+      st.className = "modal-status modal-status-err";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Send request";
+    }
+  });
 }
 
 // ── Library view ───────────────────────────────────────────────────
@@ -983,9 +1037,9 @@ function buildShelfBookCards(books, shelfId) {
 async function renderAdmin() {
   app.innerHTML = `<div class="centered-msg"><span>Loading…</span></div>`;
 
-  let books, allAuthors, allSeries, allTags, activity, allowedEmails, users;
+  let books, allAuthors, allSeries, allTags, activity, allowedEmails, users, bookRequests;
   try {
-    [books, allAuthors, allSeries, allTags, activity, allowedEmails, users] = await Promise.all([
+    [books, allAuthors, allSeries, allTags, activity, allowedEmails, users, bookRequests] = await Promise.all([
       api("/api/admin/books"),
       api("/api/authors").catch(() => []),
       api("/api/series").catch(() => []),
@@ -993,6 +1047,7 @@ async function renderAdmin() {
       api("/api/admin/activity").catch(() => []),
       api("/api/admin/allowed-emails").catch(() => []),
       api("/api/admin/users").catch(() => []),
+      api("/api/admin/requests").catch(() => []),
     ]);
   } catch {
     app.innerHTML = `<div class="centered-msg"><h2>Access denied</h2><p>Admin access required.</p></div>`;
@@ -1112,7 +1167,7 @@ async function renderAdmin() {
   // ── Tab structure ─────────────────────────────────────────────────
   function getActiveTab() {
     const hash = location.hash.slice(1);
-    return ["library", "users", "tools"].includes(hash) ? hash : "library";
+    return ["library", "users", "tools", "requests"].includes(hash) ? hash : "library";
   }
 
   // ── Render admin shell ────────────────────────────────────────────
@@ -1134,11 +1189,13 @@ async function renderAdmin() {
       <button class="admin-tab-btn" data-tab="library">Library</button>
       <button class="admin-tab-btn" data-tab="users">Users &amp; Access</button>
       <button class="admin-tab-btn" data-tab="tools">Tools</button>
+      <button class="admin-tab-btn" data-tab="requests">Requests${bookRequests.filter(r => r.status === "pending").length > 0 ? ` <span class="req-badge">${bookRequests.filter(r => r.status === "pending").length}</span>` : ""}</button>
     </div>
 
-    <div id="admin-tab-library" class="admin-tab-pane"></div>
-    <div id="admin-tab-users"   class="admin-tab-pane hidden"></div>
-    <div id="admin-tab-tools"   class="admin-tab-pane hidden"></div>
+    <div id="admin-tab-library"  class="admin-tab-pane"></div>
+    <div id="admin-tab-users"    class="admin-tab-pane hidden"></div>
+    <div id="admin-tab-tools"    class="admin-tab-pane hidden"></div>
+    <div id="admin-tab-requests" class="admin-tab-pane hidden"></div>
 
     <div class="admin-toast hidden" id="admin-toast"></div>
     <div class="admin-dirty-bar hidden" id="admin-dirty-bar">
@@ -1372,9 +1429,95 @@ async function renderAdmin() {
       </div>`;
   }
 
+  // ── Requests tab HTML ─────────────────────────────────────────────
+  function renderRequestsTabHtml() {
+    const pending   = bookRequests.filter(r => r.status === "pending");
+    const resolved  = bookRequests.filter(r => r.status !== "pending");
+
+    function reqRows(reqs) {
+      if (!reqs.length) return `<tr><td colspan="5" style="color:var(--text-muted);padding:12px 8px;">None</td></tr>`;
+      return reqs.map(r => `
+        <tr class="req-row" data-id="${r.id}">
+          <td class="act-label">${esc(r.email)}</td>
+          <td>${esc(r.title)}</td>
+          <td>${esc(r.author || "—")}</td>
+          <td class="act-when">${timeAgo(r.created_at)}</td>
+          <td class="users-actions-cell">
+            ${r.status === "pending" ? `
+              <button class="btn btn-sm req-available-btn" data-id="${r.id}">Available</button>
+              <button class="btn btn-sm req-dismiss-btn"   data-id="${r.id}">Dismiss</button>
+            ` : `<span class="user-status-badge user-status-${r.status === "available" ? "registered" : "pending"}">${r.status}</span>`}
+          </td>
+        </tr>`).join("");
+    }
+
+    return `
+      <div class="admin-card">
+        <div class="admin-card-title">Pending requests</div>
+        <div class="admin-card-body admin-card-body-table">
+          <table class="activity-table">
+            <thead><tr><th>Who</th><th>Title / Series</th><th>Author</th><th>When</th><th></th></tr></thead>
+            <tbody id="req-pending-tbody">${reqRows(pending)}</tbody>
+          </table>
+        </div>
+      </div>
+      ${resolved.length ? `
+      <div class="admin-card">
+        <div class="admin-card-title">Resolved requests</div>
+        <div class="admin-card-body admin-card-body-table">
+          <table class="activity-table">
+            <thead><tr><th>Who</th><th>Title / Series</th><th>Author</th><th>When</th><th>Status</th></tr></thead>
+            <tbody>${reqRows(resolved)}</tbody>
+          </table>
+        </div>
+      </div>` : ""}`;
+  }
+
+  function wireRequestsTab() {
+    function refreshRequestsTab() {
+      document.getElementById("admin-tab-requests").innerHTML = renderRequestsTabHtml();
+      wireRequestsTab();
+    }
+
+    document.querySelectorAll(".req-available-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = Number(btn.dataset.id);
+        btn.disabled = true;
+        btn.textContent = "Sending…";
+        try {
+          await api(`/api/admin/requests/${id}/available`, { method: "POST" });
+          const req = bookRequests.find(r => r.id === id);
+          if (req) req.status = "available";
+          refreshRequestsTab();
+          showToast("Email sent — book marked as available");
+        } catch {
+          btn.disabled = false;
+          btn.textContent = "Available";
+          showToast("Failed to send email", "err");
+        }
+      });
+    });
+
+    document.querySelectorAll(".req-dismiss-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = Number(btn.dataset.id);
+        btn.disabled = true;
+        try {
+          await api(`/api/admin/requests/${id}/dismiss`, { method: "POST" });
+          const req = bookRequests.find(r => r.id === id);
+          if (req) req.status = "dismissed";
+          refreshRequestsTab();
+        } catch {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
   // ── Tab activation ────────────────────────────────────────────────
   let usersTabWired = false;
   let toolsTabWired = false;
+  let requestsTabWired = false;
 
   function activateTab(tab) {
     history.replaceState(null, "", `/admin#${tab}`);
@@ -1391,6 +1534,10 @@ async function renderAdmin() {
       document.getElementById("admin-tab-tools").innerHTML = renderToolsTabHtml();
       wireToolsTab();
       toolsTabWired = true;
+    } else if (tab === "requests" && !requestsTabWired) {
+      document.getElementById("admin-tab-requests").innerHTML = renderRequestsTabHtml();
+      wireRequestsTab();
+      requestsTabWired = true;
     }
   }
 
