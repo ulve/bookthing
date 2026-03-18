@@ -551,6 +551,19 @@ async def admin_scan(folder: str | None = None, _session=Depends(require_admin))
     return {"ok": proc.returncode == 0, "output": output}
 
 
+@app.post("/api/admin/books/{book_id}/reset-date")
+async def admin_reset_date(book_id: str, _session=Depends(require_admin)):
+    from datetime import datetime, timezone
+    with books_module._metadata_lock:
+        data = books_module.load_metadata()
+        book = data.get("books", {}).get(book_id)
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
+        book["date_added"] = datetime.now(timezone.utc).isoformat()
+        books_module.save_metadata(data)
+    return {"ok": True, "date_added": book["date_added"]}
+
+
 @app.post("/api/admin/books/{book_id}/rescan")
 async def admin_rescan_book(book_id: str, _session=Depends(require_admin)):
     script = BASE_DIR / "scripts" / "scan.py"

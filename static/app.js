@@ -857,6 +857,7 @@ async function renderAdmin() {
           <button class="btn admin-strip-btn" data-id="${b.book_id}" title="Replace underscores with spaces in all fields">Fix _</button>
           <button class="btn admin-hide-btn ${b.hidden ? "admin-hide-btn-on" : ""}" data-id="${b.book_id}" data-hidden="${b.hidden ? "1" : "0"}" title="${b.hidden ? "Unhide this book" : "Hide from library"}">${b.hidden ? "Unhide" : "Hide"}</button>
           <button class="btn admin-rescan-btn" data-id="${b.book_id}" title="Re-scan this book's folder to pick up new or changed files">Rescan</button>
+          <button class="btn admin-resetdate-btn" data-id="${b.book_id}" title="Set date added to now">Date: now</button>
           ${b.missing ? `<button class="btn admin-delete-btn" data-id="${b.book_id}" title="Remove this missing entry">Delete</button>` : ""}
           <button class="btn btn-accent admin-save-btn" data-id="${b.book_id}">Save</button>
           <span class="admin-status" id="status-${b.book_id}"></span>
@@ -1465,6 +1466,24 @@ async function renderAdmin() {
           btn.disabled = false;
           btn.textContent = "Rescan";
         }
+      });
+    });
+
+    // Reset date added button
+    document.querySelectorAll(".admin-resetdate-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        const status = document.getElementById(`status-${id}`);
+        btn.disabled = true;
+        try {
+          await api(`/api/admin/books/${id}/reset-date`, { method: "POST" });
+          status.textContent = "Date set to now.";
+          status.className = "admin-status";
+        } catch (e) {
+          status.textContent = "Failed.";
+          status.className = "admin-status admin-status-err";
+        }
+        btn.disabled = false;
       });
     });
 
