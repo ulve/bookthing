@@ -924,6 +924,7 @@ async def client_log(request: Request, user=Depends(require_auth)):
     level = str(body.get("level", "info")).lower()
     message = str(body.get("message", ""))[:2000]
     data = body.get("data")
+    version = body.get("v")
 
     with get_db() as db:
         row = db.execute("SELECT debug_logging FROM users WHERE email = ?", (user["email"],)).fetchone()
@@ -938,6 +939,7 @@ async def client_log(request: Request, user=Depends(require_auth)):
         "ts": time.time(),
         "level": level,
         "user": user["email"],
+        "v": version,
         "ua": request.headers.get("user-agent", ""),
         "msg": message,
         "data": data,

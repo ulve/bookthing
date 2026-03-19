@@ -33,7 +33,7 @@ window.clientLog = function clientLog(level, message, data) {
     method: "POST",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ level: lvl, message, data }),
+    body: JSON.stringify({ level: lvl, message, data, v: window._appVersion }),
   }).catch(() => {});  // never let logging break the app
 }
 
@@ -2276,6 +2276,7 @@ restorePlayer();
 (async function pollVersion() {
   let known;
   try { const d = await api("/api/version"); known = d.version; } catch (_) { return; }
+  window._appVersion = known;
   const versionEl = document.getElementById("app-version");
   if (versionEl) versionEl.textContent = known;
   setInterval(async () => {
