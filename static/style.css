@@ -175,7 +175,7 @@ input:focus, select:focus {
 
 @media (max-width: 700px) {
   .library-layout { display: block; }
-  .filter-sidebar { display: none; position: static; }
+  .filter-sidebar { display: none; }
   .filter-sidebar.open { display: block; margin-bottom: 1rem; }
   .filter-toggle { display: block !important; width: 100%; margin-bottom: 0.75rem; }
   .filter-sidebar { padding: 0.75rem; }
@@ -189,8 +189,13 @@ input:focus, select:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem;
-  position: sticky;
-  top: 1rem;
+}
+
+@media (min-width: 701px) {
+  .filter-sidebar {
+    position: sticky;
+    top: 1rem;
+  }
 }
 
 .filter-toggle {
