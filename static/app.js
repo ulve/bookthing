@@ -244,7 +244,6 @@ function headerHtml(session) {
       <form method="post" action="/auth/logout" style="margin:0">
         <button class="btn" type="submit">Sign out</button>
       </form>
-      <span class="app-version" id="app-version"></span>
     </div>
     <div class="modal-overlay hidden" id="request-modal">
       <div class="modal-box">
@@ -2277,7 +2276,8 @@ restorePlayer();
 (async function pollVersion() {
   let known;
   try { const d = await api("/api/version"); known = d.version; } catch (_) { return; }
-  document.querySelectorAll(".app-version").forEach(el => { el.textContent = known; });
+  const versionEl = document.getElementById("app-version");
+  if (versionEl) versionEl.textContent = known;
   setInterval(async () => {
     try {
       const d = await api("/api/version");

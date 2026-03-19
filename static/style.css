@@ -106,11 +106,14 @@ input:focus, select:focus {
 }
 
 .app-version {
-  font-size: 0.65rem;
+  position: fixed;
+  bottom: 0.35rem;
+  left: 0.5rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
-  opacity: 0.5;
-  align-self: flex-end;
-  padding-bottom: 0.25rem;
+  opacity: 0.4;
+  z-index: 10;
+  pointer-events: none;
 }
 
 .site-brand {
