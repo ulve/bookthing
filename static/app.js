@@ -244,7 +244,6 @@ function headerHtml(session) {
       <form method="post" action="/auth/logout" style="margin:0">
         <button class="btn" type="submit">Sign out</button>
       </form>
-      <span class="app-version" id="app-version"></span>
     </div>
     <div class="modal-overlay hidden" id="request-modal">
       <div class="modal-box">
