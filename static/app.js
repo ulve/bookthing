@@ -2279,7 +2279,10 @@ restorePlayer();
   setInterval(async () => {
     try {
       const d = await api("/api/version");
-      if (d.version !== known) location.reload();
+      if (d.version !== known) {
+        console.log(`[bookthing] New version detected (${known} → ${d.version}), reloading…`);
+        location.reload();
+      }
     } catch (_) {}
   }, 5 * 60 * 1000);
 })();
