@@ -57,6 +57,8 @@
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js');
+      // Reload when a new service worker takes control so updated JS/CSS is picked up
+      navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
     }
   </script>
 </body>

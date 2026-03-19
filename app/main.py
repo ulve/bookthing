@@ -50,6 +50,22 @@ client_logger.addHandler(_ch)
 client_logger.propagate = False
 
 
+def _compute_static_version() -> str:
+    h = hashlib.sha1()
+    for name in ("app.js", "style.css", "player.js", "index.html"):
+        p = static_dir / name
+        if p.exists():
+            h.update(p.read_bytes())
+    return h.hexdigest()[:12]
+
+_static_version = _compute_static_version()
+
+
+@app.get("/api/version")
+def get_version():
+    return {"version": _static_version}
+
+
 @app.on_event("startup")
 def startup():
     init_db()

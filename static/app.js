@@ -2271,3 +2271,15 @@ async function restorePlayer() {
 
 route();
 restorePlayer();
+
+// Poll for frontend version changes every 5 minutes and reload if a new deploy is detected
+(async function pollVersion() {
+  let known;
+  try { const d = await api("/api/version"); known = d.version; } catch (_) { return; }
+  setInterval(async () => {
+    try {
+      const d = await api("/api/version");
+      if (d.version !== known) location.reload();
+    } catch (_) {}
+  }, 5 * 60 * 1000);
+})();
