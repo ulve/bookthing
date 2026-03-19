@@ -2276,7 +2276,6 @@ restorePlayer();
 (async function pollVersion() {
   let known;
   try { const d = await api("/api/version"); known = d.version; } catch (_) { return; }
-  window._appVersion = known;
   const versionEl = document.getElementById("app-version");
   if (versionEl) versionEl.textContent = known;
   setInterval(async () => {

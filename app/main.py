@@ -68,6 +68,15 @@ def get_version():
     return {"version": _static_version}
 
 
+@app.get("/api/version.js", response_class=Response)
+def get_version_js():
+    return Response(
+        content=f'window._appVersion="{_static_version}";',
+        media_type="text/javascript",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
 @app.on_event("startup")
 def startup():
     init_db()
