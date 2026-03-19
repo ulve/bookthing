@@ -164,10 +164,9 @@ input:focus, select:focus {
 }
 
 @media (max-width: 700px) {
-  .library-layout { grid-template-columns: 1fr; }
-  .filter-sidebar { display: none; }
-  .filter-sidebar.open { display: block; position: static; grid-column: 1 / -1; }
-  .library-layout:has(.filter-sidebar.open) { grid-template-columns: 1fr; }
+  .library-layout { display: block; }
+  .filter-sidebar { display: none; position: static; }
+  .filter-sidebar.open { display: block; margin-bottom: 1rem; }
   .filter-toggle { display: block !important; width: 100%; margin-bottom: 0.75rem; }
   .filter-sidebar { padding: 0.75rem; }
 }
