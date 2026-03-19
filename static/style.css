@@ -167,11 +167,12 @@ input:focus, select:focus {
   .library-layout { grid-template-columns: 1fr; }
   .filter-sidebar { display: none; }
   .filter-sidebar.open { display: block; }
-  /* When open, sidebar sits alongside the book grid */
-  .library-layout:has(.filter-sidebar.open) { grid-template-columns: 150px 1fr; }
+  /* When open, sidebar spans full width above the book grid */
+  .library-layout:has(.filter-sidebar.open) { grid-template-columns: 1fr; }
+  .filter-sidebar.open { grid-column: 1 / -1; }
   .filter-toggle { display: block !important; width: 100%; margin-bottom: 0.75rem; }
-  /* Compact sidebar on narrow screens */
-  .filter-sidebar { padding: 0.75rem; overflow-y: auto; max-height: calc(100vh - 220px); }
+  /* Compact sidebar on narrow screens — in-flow, no fixed height cap */
+  .filter-sidebar { padding: 0.75rem; position: static; }
 }
 
 /* ============================================================
