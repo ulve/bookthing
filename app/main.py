@@ -33,7 +33,9 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 class StaticCacheMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
-        if request.url.path.endswith((".js", ".css", ".webp", ".svg")):
+        if request.url.path == "/sw.js":
+            response.headers["Cache-Control"] = "no-cache"
+        elif request.url.path.endswith((".js", ".css", ".webp", ".svg")):
             response.headers["Cache-Control"] = "public, max-age=3600"
         return response
 
