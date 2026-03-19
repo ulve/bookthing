@@ -17,6 +17,7 @@ GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 
 CLIENT_LOG_PATH = Path(os.environ.get("CLIENT_LOG_PATH", METADATA_PATH.parent / "client.log"))
 CLIENT_LOG_LEVEL = os.environ.get("CLIENT_LOG_LEVEL", "warning").upper()
+VERSION_POLL_MS = int(os.environ.get("VERSION_POLL_SECS", str(5 * 60))) * 1000
 
 # First-run bootstrap: this email is auto-added as admin on startup
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip().lower()

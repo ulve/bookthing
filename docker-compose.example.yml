@@ -14,4 +14,5 @@ services:
       - GMAIL_APP_PASSWORD=your-gmail-app-password
       - CLIENT_LOG_LEVEL=warning  # set to "info" or "debug" for more verbose browser logs
       # - CLIENT_LOG_PATH=/data/client.log  # default: same directory as metadata.json
+      # - VERSION_POLL_SECS=300  # how often clients check for a new deploy (default: 300)
     restart: unless-stopped

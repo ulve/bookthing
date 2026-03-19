@@ -2272,16 +2272,22 @@ async function restorePlayer() {
 route();
 restorePlayer();
 
-// Poll for frontend version changes every 5 minutes and reload if a new deploy is detected
+// Poll for frontend version changes and reload if a new deploy is detected.
+// Interval is set server-side via VERSION_POLL_MS env var (default 5 min).
 (async function pollVersion() {
   let known;
   try { const d = await api("/api/version"); known = d.version; } catch (_) { return; }
   const versionEl = document.getElementById("app-version");
   if (versionEl) versionEl.textContent = known;
+  const interval = window._versionPollMs ?? 5 * 60 * 1000;
+  clientLog("debug", "pollVersion start", { version: known, interval_ms: interval });
   setInterval(async () => {
     try {
       const d = await api("/api/version");
+      clientLog("debug", "pollVersion tick", { known, current: d.version });
       if (d.version !== known) location.reload();
-    } catch (_) {}
-  }, 5 * 60 * 1000);
+    } catch (e) {
+      clientLog("debug", "pollVersion error", { error: String(e) });
+    }
+  }, interval);
 })();

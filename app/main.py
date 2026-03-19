@@ -22,7 +22,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from app import books as books_module
 from app import shelves as shelves_module
 from app.auth import consume_magic_link, require_auth, require_admin, request_magic_link, get_or_create_user, send_magic_email, send_available_email
-from app.config import BASE_DIR, AUDIOBOOKS_PATH, COVERS_DIR, ADMIN_EMAIL, BASE_URL, SECURE_COOKIES, CLIENT_LOG_PATH, CLIENT_LOG_LEVEL
+from app.config import BASE_DIR, AUDIOBOOKS_PATH, COVERS_DIR, ADMIN_EMAIL, BASE_URL, SECURE_COOKIES, CLIENT_LOG_PATH, CLIENT_LOG_LEVEL, VERSION_POLL_MS
 from app.db import get_db, init_db
 from app.streaming import stream_audio
 
@@ -71,7 +71,7 @@ def get_version():
 @app.get("/api/version.js", response_class=Response)
 def get_version_js():
     return Response(
-        content=f'window._appVersion="{_static_version}";',
+        content=f'window._appVersion="{_static_version}";window._versionPollMs={VERSION_POLL_MS};',
         media_type="text/javascript",
         headers={"Cache-Control": "no-cache"},
     )

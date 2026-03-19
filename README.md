@@ -123,6 +123,7 @@ On first start, the app emails a login link to `ADMIN_EMAIL`. Check your inbox, 
 | `GMAIL_APP_PASSWORD` | Gmail App Password (not your account password) |
 | `CLIENT_LOG_LEVEL` | Minimum level for browser logs written to disk: `debug`, `info`, `warning`, `error` (default: `warning`). Per-user debug logging can be toggled in the admin UI regardless of this setting. |
 | `CLIENT_LOG_PATH` | Path for the browser log file (default: next to `metadata.json`, i.e. `data/client.log`) |
+| `VERSION_POLL_SECS` | How often clients poll for a new deploy and auto-reload (default: `300`). Set to a low value (e.g. `10`) while debugging updates. |
 
 The audiobooks volume (`/audiobooks:ro`) should point to wherever your audio files live on the host. The `./data` volume is where the app stores its database, metadata, and uploaded covers — back this up.
 
