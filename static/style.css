@@ -105,6 +105,14 @@ input:focus, select:focus {
   cursor: pointer;
 }
 
+.app-version {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  opacity: 0.5;
+  align-self: flex-end;
+  padding-bottom: 0.25rem;
+}
+
 .site-brand {
   display: flex;
   align-items: center;
