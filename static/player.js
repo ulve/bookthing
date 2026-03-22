@@ -160,12 +160,18 @@ function loadTrack(index, seekTo = 0, autoplay = true) {
   if (index < 0 || index >= files.length) return;
   state.trackIndex = index;
   // pause() before src change + explicit load() keeps iOS audio session in
-  // "playback" mode (not "ambient"), preventing mute on lock screen during auto-advance
-  audio.pause();
+  // "playback" mode (not "ambient"), preventing mute on lock screen during auto-advance.
+  // Skip pause() if already ended — calling pause() on an ended element signals iOS to
+  // tear down the audio session, which is exactly what we're trying to prevent.
+  if (!audio.ended) audio.pause();
   audio.src = `/api/stream/${state.book.book_id}/${index}`;
-  // Preserve playback speed — setting src resets playbackRate in some browsers
-  audio.playbackRate = parseFloat(speedSelect.value);
   audio.load();
+  // Preserve playback speed — set after load() since load() resets playbackRate on mobile
+  const onCanPlayRate = () => {
+    audio.playbackRate = parseFloat(speedSelect.value);
+    audio.removeEventListener("canplay", onCanPlayRate);
+  };
+  audio.addEventListener("canplay", onCanPlayRate);
   if (seekTo > 0) {
     const onCanPlay = () => {
       audio.currentTime = seekTo;
