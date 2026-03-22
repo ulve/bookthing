@@ -354,9 +354,11 @@ function buildBookCards(books, positions, newCutoff) {
         const progressBar = pos
           ? `<div class="book-progress"><div class="book-progress-fill" style="width:${pct}%"></div></div>`
           : "";
-        const doneCheck = done ? `<div class="book-done-check" title="Finished">✓</div>` : "";
+        const doneDate = done && pos?.updated_at ? new Date(pos.updated_at * 1000).toISOString().slice(0, 10) : null;
+        const doneCheck = done ? `<div class="book-done-check" title="Finished${doneDate ? ` ${doneDate}` : ""}">✓${doneDate ? `<span class="badge-date">${doneDate}</span>` : ""}</div>` : "";
         const isNew = newCutoff !== null && b.date_added && new Date(b.date_added).getTime() > newCutoff;
-        const newBadge = isNew ? `<div class="book-new-badge">NEW</div>` : "";
+        const newDate = isNew ? b.date_added.slice(0, 10) : null;
+        const newBadge = isNew ? `<div class="book-new-badge">NEW<span class="badge-date">${newDate}</span></div>` : "";
         return `
         <div class="book-card" data-id="${b.book_id}">
           <div class="book-cover-container">

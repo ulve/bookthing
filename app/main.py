@@ -456,10 +456,10 @@ def get_all_positions(session=Depends(require_auth)):
         return {}
     with get_db() as db:
         rows = db.execute(
-            "SELECT book_id, file_index, time_seconds FROM positions WHERE user_id = ?",
+            "SELECT book_id, file_index, time_seconds, updated_at FROM positions WHERE user_id = ?",
             (user_id,),
         ).fetchall()
-    return {r["book_id"]: {"file_index": r["file_index"], "time_seconds": r["time_seconds"]} for r in rows}
+    return {r["book_id"]: {"file_index": r["file_index"], "time_seconds": r["time_seconds"], "updated_at": r["updated_at"]} for r in rows}
 
 
 def aggregate_listening_sessions(rows):
