@@ -52,7 +52,9 @@ fi
 
 echo "$PREFIX UI changes detected — regenerating screenshots..."
 
-if ! python scripts/screenshot.py; then
+PYTHON="${REPO_ROOT}/.venv/bin/python"
+if [ ! -x "$PYTHON" ]; then PYTHON="python"; fi
+if ! "$PYTHON" scripts/screenshot.py; then
     echo "$PREFIX Warning: screenshot.py failed. Skipping screenshot update."
     exit 0
 fi
