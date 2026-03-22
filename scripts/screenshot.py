@@ -399,30 +399,7 @@ def main():
                 page.screenshot(path=str(OUTPUT_DIR / "book-detail.png"), full_page=True)
                 print(f"  Saved {OUTPUT_DIR / 'book-detail.png'}")
 
-                # --- player.png + library.png ---
-                # Start playback so the player bar is visible for both shots
-                print("Starting playback for player bar ...")
-                play_btn = page.locator("#play-btn")
-                play_btn.click()
-                try:
-                    page.wait_for_selector("#player-bar:not(.hidden)", timeout=8000)
-                except Exception:
-                    print("  Warning: player bar did not appear")
-
-                print("Capturing player.png ...")
-                page.locator("#player-bar").screenshot(path=str(OUTPUT_DIR / "player.png"))
-                print(f"  Saved {OUTPUT_DIR / 'player.png'}")
-
-                # --- library.png --- (player bar now visible)
-                print("Capturing library.png ...")
-                page.goto(f"{base_url}/")
-                page.wait_for_selector(".book-card", timeout=10000)
-                page.wait_for_selector("#player-bar:not(.hidden)", timeout=5000)
-                page.screenshot(path=str(OUTPUT_DIR / "library.png"), full_page=True)
-                print(f"  Saved {OUTPUT_DIR / 'library.png'}")
-                print(f"  Saved {OUTPUT_DIR / 'player.png'}")
-
-                # --- admin screenshots (fresh context to avoid player bar) ---
+                # --- admin screenshots (fresh context, no player bar) ---
                 admin_context = browser.new_context(
                     viewport={"width": 1280, "height": 800},
                 )
@@ -441,21 +418,18 @@ def main():
                 admin_page.screenshot(path=str(OUTPUT_DIR / "admin-library.png"))
                 print(f"  Saved {OUTPUT_DIR / 'admin-library.png'}")
 
-                # --- admin-users.png ---
                 print("Capturing admin-users.png ...")
                 admin_page.locator(".admin-tab-btn[data-tab='users']").click()
                 admin_page.wait_for_load_state("networkidle", timeout=10000)
                 admin_page.screenshot(path=str(OUTPUT_DIR / "admin-users.png"))
                 print(f"  Saved {OUTPUT_DIR / 'admin-users.png'}")
 
-                # --- admin-tools.png ---
                 print("Capturing admin-tools.png ...")
                 admin_page.locator(".admin-tab-btn[data-tab='tools']").click()
                 admin_page.wait_for_load_state("networkidle", timeout=10000)
                 admin_page.screenshot(path=str(OUTPUT_DIR / "admin-tools.png"))
                 print(f"  Saved {OUTPUT_DIR / 'admin-tools.png'}")
 
-                # --- admin-requests.png ---
                 print("Capturing admin-requests.png ...")
                 admin_page.locator(".admin-tab-btn[data-tab='requests']").click()
                 admin_page.wait_for_load_state("networkidle", timeout=10000)
@@ -464,7 +438,7 @@ def main():
 
                 admin_context.close()
 
-                # --- request-modal.png ---
+                # --- request-modal.png (before playback) ---
                 print("Capturing request-modal.png ...")
                 page.goto(f"{base_url}/")
                 page.wait_for_selector(".book-card", timeout=10000)
@@ -476,14 +450,14 @@ def main():
                 print(f"  Saved {OUTPUT_DIR / 'request-modal.png'}")
                 page.locator("#req-cancel").click()
 
-                # --- shelves.png ---
+                # --- shelves.png (before playback) ---
                 print("Capturing shelves.png ...")
                 page.goto(f"{base_url}/shelves")
                 page.wait_for_selector(".shelf-card", timeout=10000)
                 page.screenshot(path=str(OUTPUT_DIR / "shelves.png"), full_page=True)
                 print(f"  Saved {OUTPUT_DIR / 'shelves.png'}")
 
-                # --- shelf-detail.png ---
+                # --- shelf-detail.png (before playback) ---
                 print("Capturing shelf-detail.png ...")
                 page.goto(f"{base_url}/shelves/a1b2c3d4e5f6")
                 page.wait_for_selector(".book-card", timeout=10000)
@@ -517,7 +491,16 @@ def main():
                 mob.screenshot(path=str(OUTPUT_DIR / "book-detail-mobile.png"))
                 print(f"  Saved {OUTPUT_DIR / 'book-detail-mobile.png'}")
 
+                print("Capturing shelves-mobile.png ...")
+                mob.goto(f"{base_url}/shelves")
+                mob.wait_for_selector(".shelf-card", timeout=10000)
+                mob.screenshot(path=str(OUTPUT_DIR / "shelves-mobile.png"))
+                print(f"  Saved {OUTPUT_DIR / 'shelves-mobile.png'}")
+
+                # --- mobile player screenshots (last, after playback starts) ---
                 print("Starting mobile playback for player bar ...")
+                mob.goto(f"{base_url}/book/{FEATURED_ID}")
+                mob.wait_for_load_state("networkidle", timeout=10000)
                 mob.locator("#play-btn").click()
                 try:
                     mob.wait_for_selector("#player-bar:not(.hidden)", timeout=8000)
@@ -531,13 +514,32 @@ def main():
                 mob.screenshot(path=str(OUTPUT_DIR / "library-mobile-player.png"))
                 print(f"  Saved {OUTPUT_DIR / 'library-mobile-player.png'}")
 
-                print("Capturing shelves-mobile.png ...")
-                mob.goto(f"{base_url}/shelves")
-                mob.wait_for_selector(".shelf-card", timeout=10000)
-                mob.screenshot(path=str(OUTPUT_DIR / "shelves-mobile.png"))
-                print(f"  Saved {OUTPUT_DIR / 'shelves-mobile.png'}")
+                print("Capturing player-mobile.png ...")
+                mob.locator("#player-bar").screenshot(path=str(OUTPUT_DIR / "player-mobile.png"))
+                print(f"  Saved {OUTPUT_DIR / 'player-mobile.png'}")
 
                 mobile_context.close()
+
+                # --- desktop player screenshots (last) ---
+                print("Starting desktop playback for player bar ...")
+                page.goto(f"{base_url}/book/{FEATURED_ID}")
+                page.wait_for_load_state("networkidle", timeout=10000)
+                page.locator("#play-btn").click()
+                try:
+                    page.wait_for_selector("#player-bar:not(.hidden)", timeout=8000)
+                except Exception:
+                    print("  Warning: player bar did not appear")
+
+                print("Capturing library.png ...")
+                page.goto(f"{base_url}/")
+                page.wait_for_selector(".book-card", timeout=10000)
+                page.wait_for_selector("#player-bar:not(.hidden)", timeout=5000)
+                page.screenshot(path=str(OUTPUT_DIR / "library.png"), full_page=True)
+                print(f"  Saved {OUTPUT_DIR / 'library.png'}")
+
+                print("Capturing player.png ...")
+                page.locator("#player-bar").screenshot(path=str(OUTPUT_DIR / "player.png"))
+                print(f"  Saved {OUTPUT_DIR / 'player.png'}")
 
                 browser.close()
 
