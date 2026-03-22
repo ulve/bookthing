@@ -228,9 +228,17 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+const SVG = {
+  shelves:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="7" height="18"/><rect x="9" y="3" width="7" height="18"/><rect x="16" y="3" width="6" height="18"/><line x1="2" y1="21" x2="22" y2="21"/></svg>`,
+  requestBook: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>`,
+  admin:       `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="6" x2="8" y2="3"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="16" y1="12" x2="16" y2="9"/><line x1="4" y1="18" x2="20" y2="18"/><line x1="10" y1="18" x2="10" y2="15"/></svg>`,
+  reportIssue: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  signOut:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
+};
+
 function headerHtml(session) {
   const adminLink = session?.is_admin
-    ? `<button class="btn" id="nav-admin">Admin</button>`
+    ? `<button class="btn" id="nav-admin">${SVG.admin}Admin</button>`
     : "";
   return `
     <div class="site-header">
@@ -238,11 +246,12 @@ function headerHtml(session) {
         <img src="/icon-nav.svg" alt="" class="site-icon">
         <span class="site-name">bookthing</span>
       </div>
-      <button class="btn" id="nav-shelves">Shelves</button>
-      <button class="btn" id="nav-request-book">Request a book</button>
+      <button class="btn" id="nav-shelves">${SVG.shelves}Shelves</button>
+      <button class="btn" id="nav-request-book">${SVG.requestBook}Request a book</button>
       ${adminLink}
+      <a class="btn" href="https://github.com/ulve/bookthing/issues" target="_blank" rel="noopener">${SVG.reportIssue}Report issue</a>
       <form method="post" action="/auth/logout" style="margin:0">
-        <button class="btn" type="submit">Sign out</button>
+        <button class="btn" type="submit">${SVG.signOut}Sign out</button>
       </form>
     </div>
     <div class="modal-overlay hidden" id="request-modal">

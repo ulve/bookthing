@@ -7,14 +7,16 @@ Only 'files', 'pattern', and 'cover' are updated from disk.
 import hashlib
 import json
 import re
+import shutil
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 # Allow running from any directory
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.config import AUDIOBOOKS_PATH, METADATA_PATH, COVERS_DIR
+from app.config import AUDIOBOOKS_PATH, METADATA_PATH, COVERS_DIR, MERGED_DIR
 
 AUDIO_EXTENSIONS = {".mp3", ".m4b", ".m4a", ".mp4", ".ogg", ".flac", ".aac"}
 COVER_NAMES = {"cover.jpg", "cover.png", "folder.jpg", "folder.png", "cover.jpeg"}
@@ -359,6 +361,116 @@ def merge(existing: dict, new_entry: dict) -> dict:
     return merged
 
 
+def merge_multipart(files_rel: list[str], book_id: str, chapters: list[dict], root: Path) -> str | None:
+    """Merge multiple audio files into a single file using ffmpeg.
+
+    Returns a path relative to METADATA_PATH.parent (e.g. "merged/{book_id}.mp3")
+    on success, or None on failure / if ffmpeg is not available.
+    Only runs when len(files_rel) > 1.
+    """
+    if len(files_rel) <= 1:
+        return None
+
+    if not shutil.which("ffmpeg"):
+        return None
+
+    # Determine output extension
+    exts = {Path(f).suffix.lower() for f in files_rel}
+    out_ext = ".mp3" if exts == {".mp3"} else ".m4b"
+
+    MERGED_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = MERGED_DIR / f"{book_id}{out_ext}"
+    out_rel = f"merged/{book_id}{out_ext}"
+
+    # Skip if merged file exists and is newer than all source files
+    if out_path.exists():
+        out_mtime = out_path.stat().st_mtime
+        src_mtimes = []
+        for f_rel in files_rel:
+            src = root / f_rel
+            if src.exists():
+                src_mtimes.append(src.stat().st_mtime)
+        if src_mtimes and out_mtime > max(src_mtimes):
+            return out_rel
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+
+        # Write ffmpeg concat file list
+        filelist = tmp / "filelist.txt"
+        lines = []
+        for f_rel in files_rel:
+            abs_path = (root / f_rel).resolve()
+            escaped = str(abs_path).replace("'", "'\\''")
+            lines.append(f"file '{escaped}'")
+        filelist.write_text("\n".join(lines) + "\n")
+
+        if out_ext in (".m4b", ".mp4", ".m4a"):
+            # Write ffmetadata file for chapters
+            meta_lines = [";FFMETADATA1"]
+            for i, ch in enumerate(chapters):
+                start_ms = int(ch["start"] * 1000)
+                if i + 1 < len(chapters):
+                    end_ms = int(chapters[i + 1]["start"] * 1000)
+                else:
+                    # For last chapter, estimate end from total duration of all source files
+                    try:
+                        from mutagen import File as MutagenFile
+                        total = 0.0
+                        for f_rel in files_rel:
+                            af = MutagenFile(root / f_rel, easy=False)
+                            if af and af.info:
+                                total += af.info.length
+                        end_ms = int(total * 1000)
+                    except Exception:
+                        end_ms = start_ms + 1
+                meta_lines.append("[CHAPTER]")
+                meta_lines.append("TIMEBASE=1/1000")
+                meta_lines.append(f"START={start_ms}")
+                meta_lines.append(f"END={end_ms}")
+                meta_lines.append(f"title={ch['title']}")
+            ffmeta = tmp / "ffmetadata.txt"
+            ffmeta.write_text("\n".join(meta_lines) + "\n")
+
+            import subprocess
+            result = subprocess.run(
+                [
+                    "ffmpeg",
+                    "-f", "concat", "-safe", "0",
+                    "-i", str(filelist),
+                    "-i", str(ffmeta),
+                    "-map", "0:a",
+                    "-map_metadata", "1",
+                    "-c", "copy",
+                    str(out_path),
+                    "-y",
+                ],
+                capture_output=True,
+                text=True,
+            )
+        else:
+            # MP3: simple concat
+            import subprocess
+            result = subprocess.run(
+                [
+                    "ffmpeg",
+                    "-f", "concat", "-safe", "0",
+                    "-i", str(filelist),
+                    "-c", "copy",
+                    str(out_path),
+                    "-y",
+                ],
+                capture_output=True,
+                text=True,
+            )
+
+        if result.returncode != 0:
+            print(f"  ffmpeg error for {book_id}:\n{result.stderr[-2000:]}")
+            return None
+
+    return out_rel
+
+
 def main(folder: str | None = None):
     scan_root = AUDIOBOOKS_PATH
     if folder:
@@ -405,7 +517,8 @@ def main(folder: str | None = None):
 
         # Read durations and chapters only when the file list has changed or is missing
         merged = new_books[book_id]
-        if merged.get("files") != existing.get("files") or "file_durations" not in existing:
+        files_changed = merged.get("files") != existing.get("files") or "file_durations" not in existing
+        if files_changed:
             merged["file_durations"] = read_durations(merged["files"], AUDIOBOOKS_PATH)
             merged["chapters"] = read_chapters(merged["files"], merged["file_durations"], AUDIOBOOKS_PATH)
             if book_id in existing_books:
@@ -416,6 +529,16 @@ def main(folder: str | None = None):
                 merged["chapters"] = read_chapters(merged["files"], merged["file_durations"], AUDIOBOOKS_PATH)
             else:
                 merged["chapters"] = existing["chapters"]
+
+        # Merge multipart books into a single file
+        if len(merged["files"]) > 1:
+            if files_changed or existing.get("merged_file") is None:
+                mf = merge_multipart(merged["files"], book_id, merged["chapters"], AUDIOBOOKS_PATH)
+                merged["merged_file"] = mf
+            else:
+                merged["merged_file"] = existing.get("merged_file")
+        else:
+            merged["merged_file"] = None
 
     # Handle books from existing metadata
     folder_prefix = (folder.rstrip("/") + "/") if folder else None
@@ -492,7 +615,8 @@ def rescan_book(book_id: str) -> tuple[bool, str]:
         matched = candidate_to_entry(candidates[0], AUDIOBOOKS_PATH)
 
     merged = merge(existing, matched)
-    if merged.get("files") != existing.get("files") or "file_durations" not in existing:
+    files_changed = merged.get("files") != existing.get("files") or "file_durations" not in existing
+    if files_changed:
         merged["file_durations"] = read_durations(merged["files"], AUDIOBOOKS_PATH)
         merged["chapters"] = read_chapters(merged["files"], merged["file_durations"], AUDIOBOOKS_PATH)
     else:
@@ -501,6 +625,16 @@ def rescan_book(book_id: str) -> tuple[bool, str]:
             merged["chapters"] = read_chapters(merged["files"], merged["file_durations"], AUDIOBOOKS_PATH)
         else:
             merged["chapters"] = existing["chapters"]
+
+    # Merge multipart books into a single file
+    if len(merged["files"]) > 1:
+        if files_changed or existing.get("merged_file") is None:
+            mf = merge_multipart(merged["files"], book_id, merged["chapters"], AUDIOBOOKS_PATH)
+            merged["merged_file"] = mf
+        else:
+            merged["merged_file"] = existing.get("merged_file")
+    else:
+        merged["merged_file"] = None
 
     # Replace old entry (book_id won't change for same path)
     existing_books.pop(book_id, None)
@@ -515,14 +649,55 @@ def rescan_book(book_id: str) -> tuple[bool, str]:
     return True, f"Rescanned: {matched['path']} ({n} file{'s' if n != 1 else ''})"
 
 
+def merge_only():
+    """Merge multipart books that don't yet have a merged_file, without rescanning."""
+    if not METADATA_PATH.exists():
+        print("No metadata found")
+        sys.exit(1)
+
+    with open(METADATA_PATH) as f:
+        existing_data = json.load(f)
+
+    books = existing_data.get("books", {})
+    candidates = [
+        (bid, b)
+        for bid, b in books.items()
+        if not b.get("missing") and len(b.get("files", [])) > 1 and not b.get("merged_file")
+    ]
+
+    print(f"Found {len(candidates)} multipart book(s) without a merged file")
+    changed = False
+    for bid, book in candidates:
+        print(f"  Merging: {book.get('path', bid)} ...")
+        mf = merge_multipart(book["files"], bid, book.get("chapters", []), AUDIOBOOKS_PATH)
+        if mf:
+            book["merged_file"] = mf
+            print(f"    -> {mf}")
+            changed = True
+        else:
+            print(f"    -> failed or skipped")
+
+    if changed:
+        sorted_books = dict(sorted(books.items(), key=lambda x: x[1].get("path", "")))
+        METADATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(METADATA_PATH, "w") as f:
+            json.dump({"books": sorted_books}, f, indent=2, ensure_ascii=False)
+        print("Metadata updated.")
+    else:
+        print("No changes.")
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--book-id", help="Rescan a single book by ID instead of the full library")
     parser.add_argument("--folder", help="Scan only this subfolder (relative to AUDIOBOOKS_PATH)")
+    parser.add_argument("--merge-only", action="store_true", help="Merge multipart books without a full rescan")
     args = parser.parse_args()
 
-    if args.book_id:
+    if args.merge_only:
+        merge_only()
+    elif args.book_id:
         ok, msg = rescan_book(args.book_id)
         print(msg)
         sys.exit(0 if ok else 1)

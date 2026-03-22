@@ -293,6 +293,17 @@ def tags(_session=Depends(require_auth)):
 # Streaming
 # ---------------------------------------------------------------------------
 
+@app.get("/api/stream/{book_id}/merged")
+async def stream_merged(book_id: str, request: Request, _session=Depends(require_auth)):
+    book = books_module.get_book_detail(book_id)
+    if not book or not book.get("merged_file"):
+        raise HTTPException(status_code=404, detail="No merged file")
+    from app.config import MERGED_DIR
+    merged_path = MERGED_DIR.parent / book["merged_file"]
+    range_header = request.headers.get("range")
+    return await stream_audio(merged_path, range_header)
+
+
 @app.get("/api/stream/{book_id}/{file_index}")
 async def stream(book_id: str, file_index: int, request: Request, _session=Depends(require_auth)):
     files = books_module.get_book_files(book_id)

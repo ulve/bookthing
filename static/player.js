@@ -17,6 +17,7 @@ const playerCover = document.getElementById("player-cover");
 let state = {
   book: null,       // book detail object
   trackIndex: 0,
+  isMerged: false,
   isScrubbing: false,
   saveTimer: null,
   timeMode: 1,      // 0=part left, 1=book left, 2=percent, 3=time played
@@ -60,6 +61,9 @@ function currentChapterIndex() {
 }
 
 function bookProgressInfo() {
+  if (state.isMerged) {
+    return { bookTotal: audio.duration || 0, elapsed: audio.currentTime || 0 };
+  }
   const durs = state.book?.file_durations || [];
   const bookTotal = durs.reduce((a, v) => a + v, 0);
   const elapsed = durs.slice(0, state.trackIndex).reduce((a, v) => a + v, 0) + (audio.currentTime || 0);
@@ -156,6 +160,19 @@ function updateMediaSession() {
 
 function loadTrack(index, seekTo = 0, autoplay = true) {
   if (!state.book) return;
+  if (state.isMerged) {
+    // Single merged stream: just seek, don't swap src
+    if (seekTo >= 0) {
+      const onCanPlay = () => {
+        audio.currentTime = seekTo;
+        audio.removeEventListener("canplay", onCanPlay);
+      };
+      audio.addEventListener("canplay", onCanPlay);
+    }
+    if (autoplay && audio.paused) audio.play().catch(() => {});
+    updateTrackDisplay();
+    return;
+  }
   const files = state.book.files || [];
   if (index < 0 || index >= files.length) return;
   state.trackIndex = index;
@@ -217,11 +234,13 @@ audio.addEventListener("timeupdate", () => {
   schedulePositionSave();
 });
 audio.addEventListener("ended", () => {
-  const files = state.book?.files || [];
   savePosition();
-  if (state.trackIndex < files.length - 1) {
-    window.clientLog?.("info", "track advance", { book_id: state.book?.book_id, track: state.trackIndex + 1 });
-    loadTrack(state.trackIndex + 1, 0);
+  if (!state.isMerged) {
+    const files = state.book?.files || [];
+    if (state.trackIndex < files.length - 1) {
+      window.clientLog?.("info", "track advance", { book_id: state.book?.book_id, track: state.trackIndex + 1 });
+      loadTrack(state.trackIndex + 1, 0);
+    }
   }
 });
 audio.addEventListener("error", () => {
@@ -238,6 +257,18 @@ btnPlay.addEventListener("click", () => {
 });
 
 btnPrev.addEventListener("click", () => {
+  if (state.isMerged) {
+    const chapters = state.book?.chapters || [];
+    const idx = currentChapterIndex();
+    if (audio.currentTime > 5) {
+      audio.currentTime = chapters[idx]?.start ?? 0;
+    } else if (idx > 0) {
+      audio.currentTime = chapters[idx - 1].start;
+    } else {
+      audio.currentTime = 0;
+    }
+    return;
+  }
   if (audio.currentTime > 5) {
     audio.currentTime = 0;
   } else if (state.trackIndex > 0) {
@@ -246,6 +277,14 @@ btnPrev.addEventListener("click", () => {
 });
 
 btnNext.addEventListener("click", () => {
+  if (state.isMerged) {
+    const chapters = state.book?.chapters || [];
+    const idx = currentChapterIndex();
+    if (idx < chapters.length - 1) {
+      audio.currentTime = chapters[idx + 1].start;
+    }
+    return;
+  }
   const files = state.book?.files || [];
   if (state.trackIndex < files.length - 1) {
     loadTrack(state.trackIndex + 1, 0);
@@ -328,6 +367,69 @@ async function loadBook(book, forceTrackIndex = null, { paused = false, startAtS
   bar.classList.remove("hidden");
   updateTrackDisplay();
 
+  if (book.merged_file) {
+    state.isMerged = true;
+    state.trackIndex = 0;
+    audio.src = `/api/stream/${book.book_id}/merged`;
+    audio.load();
+
+    if (forceTrackIndex !== null) {
+      // forceTrackIndex for merged: treat as "start at beginning of that track"
+      const durs = book.file_durations || [];
+      const absoluteTime = durs.slice(0, forceTrackIndex).reduce((a, v) => a + v, 0);
+      const onCanPlay = () => {
+        audio.currentTime = absoluteTime;
+        audio.removeEventListener("canplay", onCanPlay);
+      };
+      audio.addEventListener("canplay", onCanPlay);
+      if (!paused) audio.play().catch(() => {});
+      return;
+    }
+
+    if (startAtSeconds !== null) {
+      const onCanPlay = () => {
+        audio.currentTime = startAtSeconds;
+        audio.removeEventListener("canplay", onCanPlay);
+      };
+      audio.addEventListener("canplay", onCanPlay);
+      if (!paused) audio.play().catch(() => {});
+      return;
+    }
+
+    // Restore saved position
+    let startTime = 0;
+    try {
+      const res = await fetch(`/api/position/${book.book_id}`);
+      if (res.ok) {
+        const pos = await res.json();
+        const fileIndex = pos.file_index || 0;
+        const timeSecs = pos.time_seconds || 0;
+        const durs = book.file_durations || [];
+        // Convert file_index + time_seconds to absolute time in merged stream
+        const baseTime = durs.slice(0, fileIndex).reduce((a, v) => a + v, 0);
+        startTime = baseTime + timeSecs;
+      }
+    } catch (_) {}
+
+    if (startTime > 0) {
+      const onCanPlay = () => {
+        audio.currentTime = startTime;
+        audio.removeEventListener("canplay", onCanPlay);
+      };
+      audio.addEventListener("canplay", onCanPlay);
+    }
+    // Also set playbackRate after load
+    const onCanPlayRate = () => {
+      audio.playbackRate = parseFloat(speedSelect.value);
+      audio.removeEventListener("canplay", onCanPlayRate);
+    };
+    audio.addEventListener("canplay", onCanPlayRate);
+    if (!paused) audio.play().catch(() => {});
+    return;
+  }
+
+  state.isMerged = false;
+
   if (forceTrackIndex !== null) {
     loadTrack(forceTrackIndex, 0, !paused);
     return;
@@ -359,6 +461,10 @@ function jumpToTrack(index) {
 }
 
 function jumpToChapter(startSeconds) {
+  if (state.isMerged) {
+    audio.currentTime = startSeconds;
+    return;
+  }
   const { trackIndex, seekTo } = secondsToTrackSeek(startSeconds, state.book?.file_durations || []);
   loadTrack(trackIndex, seekTo);
 }
