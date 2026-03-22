@@ -401,7 +401,8 @@ def merge_multipart(files_rel: list[str], book_id: str, chapters: list[dict], ro
         lines = []
         for f_rel in files_rel:
             abs_path = (root / f_rel).resolve()
-            lines.append(f"file '{abs_path}'")
+            escaped = str(abs_path).replace("'", "'\\''")
+            lines.append(f"file '{escaped}'")
         filelist.write_text("\n".join(lines) + "\n")
 
         if out_ext in (".m4b", ".mp4", ".m4a"):
