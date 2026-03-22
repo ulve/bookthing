@@ -438,6 +438,7 @@ def merge_multipart(files_rel: list[str], book_id: str, chapters: list[dict], ro
                     "-f", "concat", "-safe", "0",
                     "-i", str(filelist),
                     "-i", str(ffmeta),
+                    "-map", "0:a",
                     "-map_metadata", "1",
                     "-c", "copy",
                     str(out_path),
