@@ -241,6 +241,7 @@ function headerHtml(session) {
       <button class="btn" id="nav-shelves">Shelves</button>
       <button class="btn" id="nav-request-book">Request a book</button>
       ${adminLink}
+      <a class="btn" href="https://github.com/ulve/bookthing/issues" target="_blank" rel="noopener">Report issue</a>
       <form method="post" action="/auth/logout" style="margin:0">
         <button class="btn" type="submit">Sign out</button>
       </form>
