@@ -298,8 +298,8 @@ async def stream_merged(book_id: str, request: Request, _session=Depends(require
     book = books_module.get_book_detail(book_id)
     if not book or not book.get("merged_file"):
         raise HTTPException(status_code=404, detail="No merged file")
-    from app.config import MERGED_DIR
-    merged_path = MERGED_DIR.parent / book["merged_file"]
+    from app.config import AUDIOBOOKS_PATH
+    merged_path = AUDIOBOOKS_PATH / book["merged_file"]
     range_header = request.headers.get("range")
     return await stream_audio(merged_path, range_header)
 

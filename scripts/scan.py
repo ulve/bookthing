@@ -175,7 +175,7 @@ def walk_for_books(path: Path, books: list, root: Path, depth: int = 0):
         return
 
     audio_here = sorted([f for f in entries if is_audio(f)])
-    dirs_here = sorted([d for d in entries if d.is_dir()])
+    dirs_here = sorted([d for d in entries if d.is_dir() and d.name != "_merged"])
 
     if depth == 0:
         # Root level: loose audio files each become their own single-file book
@@ -380,7 +380,7 @@ def merge_multipart(files_rel: list[str], book_id: str, chapters: list[dict], ro
 
     MERGED_DIR.mkdir(parents=True, exist_ok=True)
     out_path = MERGED_DIR / f"{book_id}{out_ext}"
-    out_rel = f"merged/{book_id}{out_ext}"
+    out_rel = f"_merged/{book_id}{out_ext}"
 
     # Skip if merged file exists and is newer than all source files
     if out_path.exists():
